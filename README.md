@@ -7,7 +7,7 @@
 ## 特性
 
 - 简体中文界面，柔和现代的 Bento 拼贴 + 毛玻璃风格，桌面 / 手机自适应
-- 三个分类：数据工程 / Agent 开发 / UI 设计（`/categories/`），空分类显示「即将更新」
+- 三个分类：数据工程 / AI 应用 / UI 设计（`/categories/`），空分类显示「即将更新」
 - 首页、文章页、分类页、标签页、关于页、404 页
 - 站内搜索（导航栏放大镜、首页「搜索文章」按钮，或按 `Ctrl+K` / `/`），纯前端实现，不依赖第三方服务
 - 深色 / 浅色模式切换（默认跟随系统，选择会被记住）
@@ -51,7 +51,7 @@ index.html、posts/、categories/、tags/、about/、search.json、feed.xml …�
 
 笔记仓库 [Miss001/data-engineering-notes](https://github.com/Miss001/data-engineering-notes) 里的每篇 Markdown 笔记都会变成一篇博客文章：
 
-- 分类：`ai/` → Agent 开发，`design/` → UI 设计，其余（database / bigdata / ops / dev）→ 数据工程
+- 分类：`ai/` → AI 应用，`design/` → UI 设计，其余（database / bigdata / ops / dev）→ 数据工程
 - 标签：领域（数据库 / 大数据 / 运维 / 开发）+ 产品（MySQL、openGauss、Spark……，按目录名映射）
 - 标题：「产品 + 子目录：文件名」，如「MySQL 复制：主从切换」；英文文件名在 `import_notes.py` 的 `LABELS` 里有中文名
 - 网址：由笔记路径转拼音生成，路径不变网址就不变
@@ -86,7 +86,7 @@ python3 -m http.server 8000
    ---
    title: 文章标题
    date: 2026-10-20
-   category: data          # data=数据工程 / agent=Agent 开发 / design=UI 设计
+   category: data          # data=数据工程 / agent=AI 应用 / design=UI 设计
    tags: [Spark, 大数据]
    summary: 一两句话的摘要，会显示在首页和搜索结果里。
    source: https://github.com/Miss001/xxx      # 可选，整理自哪个笔记仓库
