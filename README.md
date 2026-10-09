@@ -16,7 +16,11 @@
 ## 目录结构
 
 ```
-_src/posts/       文章源文件（Markdown），文件名格式：YYYY-MM-DD-英文短名.md
+_src/posts/       手写文章（Markdown），文件名格式：YYYY-MM-DD-英文短名.md
+_src/notes/       由 import_notes.py 从笔记仓库自动生成（已在 .gitignore 里，不要手改）
+_src/note_dates.json  笔记的发布日期覆盖表（笔记路径 → 日期），没写的用笔记仓库里的首次提交日期
+import_notes.py   导入器：把 Miss001/data-engineering-notes 的每篇笔记转成一篇文章
+.github/workflows/deploy.yml  GitHub Actions：导入笔记 + 构建 + 发布到 Pages
 _src/about.md     关于页的自我介绍
 assets/           样式、脚本、头像与图标（avatar.svg / favicon.svg / favicon-32.png / apple-touch-icon.png）
                   构建时只会重新生成 highlight.css
@@ -25,7 +29,8 @@ index.html、posts/、categories/、tags/、about/、search.json、feed.xml …�
 .nojekyll         告诉 GitHub Pages 不要再用 Jekyll 处理，直接按静态文件发布
 ```
 
-这是一个「生成好的静态站」：GitHub Pages 直接托管仓库里的 HTML 文件，**不需要 Jekyll，也不需要 GitHub Actions**。
+这是一个「生成好的静态站」。仓库里仍然提交了一份构建好的 HTML，所以 Pages 源设为「Deploy from a branch」时也能正常显示；
+切换到 GitHub Actions 发布后，笔记仓库一更新，博客就会自动跟着更新（见下文）。
 
 ## 发布到 GitHub Pages
 
@@ -41,6 +46,37 @@ index.html、posts/、categories/、tags/、about/、search.json、feed.xml …�
    - Source（Build and deployment）选 **Deploy from a branch**
    - Branch 选 **main**，目录选 **/ (root)**，点 Save
 4. 等一两分钟，访问 <https://miss001.github.io> 即可。之后每次 push 到 main 都会自动更新。
+
+## 笔记自动同步（GitHub Actions）
+
+笔记仓库 [Miss001/data-engineering-notes](https://github.com/Miss001/data-engineering-notes) 里的每篇 Markdown 笔记都会变成一篇博客文章：
+
+- 分类：`ai/` → Agent 开发，`design/` → UI 设计，其余（database / bigdata / ops / dev）→ 数据工程
+- 标签：领域（数据库 / 大数据 / 运维 / 开发）+ 产品（MySQL、openGauss、Spark……，按目录名映射）
+- 标题：「产品 + 子目录：文件名」，如「MySQL 复制：主从切换」；英文文件名在 `import_notes.py` 的 `LABELS` 里有中文名
+- 网址：由笔记路径转拼音生成，路径不变网址就不变
+- 跳过：所有 `README.md`、空文件，以及已经有手写文章的几篇（`SKIP` 列表）
+- 只有脚本 / SQL 的目录（sql-helper、HDFS 小文件合并等）合成一篇代码合集
+- 笔记开头也可以写 front matter（title / date / summary），会优先使用
+
+**一次性设置**：仓库 **Settings → Pages → Build and deployment → Source** 改成 **GitHub Actions**。
+之后以下情况都会自动导入笔记、构建并发布：
+
+- push 到博客仓库的 main 分支
+- 每小时第 17 分钟定时运行一次（笔记仓库有改动就会出现在博客上，最多延迟约一小时）
+- 在 Actions 页面手动点 **Run workflow**
+
+本地完整构建：
+
+```bash
+pip install markdown pygments pypinyin
+git clone https://github.com/Miss001/data-engineering-notes _notes   # 已 clone 过就 git -C _notes pull
+python3 import_notes.py --notes _notes
+python3 build.py
+python3 -m http.server 8000
+```
+
+> 笔记仓库是公开的，导入器不会再做脱敏：往笔记里加内容前请先确认没有密码、内网 IP、密钥。
 
 ## 写新文章
 
@@ -63,7 +99,8 @@ index.html、posts/、categories/、tags/、about/、search.json、feed.xml …�
 2. 重新生成并本地预览：
 
    ```bash
-   pip install markdown pygments      # 只需第一次
+   pip install markdown pygments pypinyin      # 只需第一次
+   python3 import_notes.py --notes _notes      # 想一起预览笔记文章时
    python3 build.py
    python3 -m http.server 8000        # 浏览器打开 http://localhost:8000
    ```
@@ -82,7 +119,7 @@ index.html、posts/、categories/、tags/、about/、search.json、feed.xml …�
 
 ## 首批文章来源
 
-首批 4 篇文章整理自以下公开笔记仓库，排版有调整，技术内容保持原样：
+首批 4 篇手写文章整理自以下公开笔记仓库，排版有调整，技术内容保持原样：
 
 - [Miss001/ai](https://github.com/Miss001/ai)：Ollama 离线安装、Ollama 导入 GGUF 模型、Dify 部署
 - [Miss001/docker](https://github.com/Miss001/docker)：CentOS 7.9 安装 Docker

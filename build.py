@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""极简静态博客生成器：把 _src/posts/*.md 渲染成静态 HTML，输出到仓库根目录。
+"""极简静态博客生成器：把 _src/posts/*.md（手写）和 _src/notes/*.md（import_notes.py 从笔记仓库生成）
+渲染成静态 HTML，输出到仓库根目录。
 
 用法：
-    pip install markdown pygments
+    pip install markdown pygments pypinyin
+    git clone https://github.com/Miss001/data-engineering-notes _notes
+    python3 import_notes.py --notes _notes
     python3 build.py
 """
 import html, json, re, shutil, datetime
@@ -39,7 +42,11 @@ CATEGORIES = [
 CAT = {c["slug"]: c for c in CATEGORIES}
 
 # 中文标签 → URL 友好的目录名；英文标签自动转小写
-TAG_SLUGS = {"大模型": "llm", "离线部署": "offline"}
+TAG_SLUGS = {"大模型": "llm", "离线部署": "offline", "数据库": "database", "大数据": "bigdata", "运维": "ops",
+             "开发": "dev", "国产数据库": "domestic-db", "达梦": "dameng", "常用链接": "links", "UI 设计": "ui-design"}
+PER_PAGE = 20      # 分类页 / 标签页每页文章数
+HOME_LATEST = 10   # 首页「最新文章」条数
+HOME_TAGS = 16     # 首页展示的热门标签数
 
 SKILLS = [
     ("大数据", "sage", ["Spark", "Hive", "Elasticsearch", "Kylin", "Azkaban"]),
@@ -64,7 +71,11 @@ ICONS = {
 
 
 def tag_slug(t):
-    return TAG_SLUGS.get(t) or re.sub(r"[^a-z0-9]+", "-", t.lower()).strip("-")
+    s = TAG_SLUGS.get(t) or re.sub(r"[^a-z0-9]+", "-", t.lower()).strip("-")
+    if not s or not re.search(r"[a-z]", s):  # 纯中文等无法转写的标签：用稳定的短哈希
+        import hashlib
+        s = "t-" + hashlib.md5(t.encode("utf-8")).hexdigest()[:8]
+    return s
 
 
 def parse_front_matter(text):
@@ -111,7 +122,7 @@ def e(s):
 def layout(title, body, active="", desc=None, path="/"):
     full_title = f"{title} · {SITE['short']}" if title else SITE["title"]
     desc = desc or SITE["desc"]
-    nav = [("/", "首页", "home"), ("/categories/", "分类", "cats"), ("/tags/", "标签", "tags"), ("/about/", "关于", "about")]
+    nav = [("/", "首页", "home"), ("/categories/", "分类", "cats"), ("/archive/", "归档", "archive"), ("/tags/", "标签", "tags"), ("/about/", "关于", "about")]
     nav_html = "".join('<a class="l%s" href="%s">%s</a>' % (" on" if k == active else "", u, n) for u, n, k in nav)
     year = datetime.date.today().year
     return f"""<!DOCTYPE html>
@@ -195,6 +206,35 @@ def post_list(posts):
     return '<section class="glass posts">' + "".join(post_row(p) for p in posts) + "</section>"
 
 
+def pager(base, page, pages):
+    if pages <= 1:
+        return ""
+    url = lambda n: base if n == 1 else f"{base}page/{n}/"
+    items = []
+    if page > 1:
+        items.append(f'<a class="chip" href="{url(page - 1)}" rel="prev">← 上一页</a>')
+    for n in range(1, pages + 1):
+        if n in (1, pages) or abs(n - page) <= 2:
+            items.append(f'<a class="chip{" on" if n == page else ""}" href="{url(n)}"{" aria-current=page" if n == page else ""}>{n}</a>')
+        elif items and not items[-1].endswith("…</span>"):
+            items.append('<span class="gap">…</span>')
+    if page < pages:
+        items.append(f'<a class="chip" href="{url(page + 1)}" rel="next">下一页 →</a>')
+    return f'<nav class="pager" aria-label="分页">{"".join(items)}<span class="pager-info">第 {page} / {pages} 页</span></nav>'
+
+
+def write_paged(base, posts, head_html, title, active, desc=None):
+    """把文章列表按 PER_PAGE 分页写到 base、base/page/2/ ……；返回总页数。"""
+    pages = max(1, -(-len(posts) // PER_PAGE))
+    for n in range(1, pages + 1):
+        chunk = posts[(n - 1) * PER_PAGE:n * PER_PAGE]
+        path = base if n == 1 else f"{base}page/{n}/"
+        b = head_html + post_list(chunk) + pager(base, n, pages)
+        t = title if n == 1 else f"{title} · 第 {n} 页"
+        write(ROOT / path.strip("/") / "index.html", layout(t, b, active, desc, path))
+    return pages
+
+
 def empty_state(cat):
     return f"""<section class="glass empty">
   <img src="/assets/avatar.svg" alt="" width="96" height="96">
@@ -223,7 +263,7 @@ def write(path, content):
 
 
 def clean_output():
-    for name in ["posts", "tags", "about", "categories"]:
+    for name in ["posts", "tags", "about", "categories", "archive"]:
         shutil.rmtree(ROOT / name, ignore_errors=True)
     for name in ["index.html", "404.html", "search.json", "feed.xml", "sitemap.xml"]:
         (ROOT / name).unlink(missing_ok=True)
@@ -255,7 +295,10 @@ def roles_line():
 def main():
     clean_output()
     posts = []
-    for f in sorted((SRC / "posts").glob("*.md")):
+    note_files = sorted((SRC / "notes").glob("*.md"))
+    if not note_files:
+        print("提示：_src/notes 为空，只构建手写文章。导入笔记请先运行 import_notes.py")
+    for f in sorted((SRC / "posts").glob("*.md")) + note_files:
         meta, body = parse_front_matter(f.read_text(encoding="utf-8"))
         slug = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", f.stem)
         content, toc = md_render(body)
@@ -273,7 +316,10 @@ def main():
             "content": content, "toc": toc, "text": plain_text(content),
             "minutes": reading_minutes(body), "url": f"/posts/{slug}/",
         })
-    posts.sort(key=lambda p: p["date"], reverse=True)
+    slugs = [p["slug"] for p in posts]
+    dup = {x for x in slugs if slugs.count(x) > 1}
+    assert not dup, f"文章 slug 重复：{dup}"
+    posts.sort(key=lambda p: (p["date"], p["title"]), reverse=True)
 
     tags = {}
     for p in posts:
@@ -282,12 +328,14 @@ def main():
     tag_list = sorted(tags.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     by_cat = {c["slug"]: [p for p in posts if p["category"] == c["slug"]] for c in CATEGORIES}
 
-    def chips(active=None):
+    def chips(active=None, limit=None):
         out = f'<a class="chip{" on" if active is None else ""}" href="/tags/">全部<small>{len(posts)}</small></a>'
         out += "".join(
             f'<a class="chip{" on" if t == active else ""}" href="/tags/{tag_slug(t)}/">{e(t)}<small>{len(ps)}</small></a>'
-            for t, ps in tag_list
+            for t, ps in (tag_list[:limit] if limit else tag_list)
         )
+        if limit and len(tag_list) > limit:
+            out += f'<a class="chip" href="/tags/">更多标签 →</a>'
         return f'<div class="chips">{out}</div>'
 
     # ---------- 首页 ----------
@@ -334,8 +382,9 @@ def main():
     <a href="/feed.xml"><span class="ic c-sage">{ICONS['rss']}</span>RSS 订阅</a>
   </div>
 </section>
-<div class="sec-head" id="posts"><h2>全部文章</h2>{chips()}</div>
-{post_list(posts)}"""
+<div class="sec-head" id="posts"><h2>最新文章</h2>{chips(limit=HOME_TAGS)}</div>
+{post_list(posts[:HOME_LATEST])}
+<div class="more-row"><a class="pill dark" href="/archive/">查看全部 {len(posts)} 篇文章 →</a>{''.join(f'<a class="pill" href="/categories/{c["slug"]}/">{c["name"]} · {len(by_cat[c["slug"]])}</a>' for c in CATEGORIES if by_cat[c["slug"]])}</div>"""
     write(ROOT / "index.html", layout("", home, "home"))
 
     # ---------- 文章页 ----------
@@ -349,6 +398,8 @@ def main():
         src = ""
         if p["source"]:
             src = f'<div class="source-note">本文整理自我的公开笔记仓库 <a href="{e(p["source"])}">{e(p["source_name"])}</a>，排版有调整，技术内容保持原样。</div>'
+        toc = toc_html(p["toc"])
+        toc_aside = f'<aside class="toc"><div class="toc-inner glass"><h3>目录</h3>{toc}</div></aside>' if toc else '<aside class="toc"></aside>'
         body = f"""<div class="post-layout">
 <article class="post">
   <header class="glass post-header c-{CAT[p['category']]['color']}">
@@ -363,7 +414,7 @@ def main():
   </div>
   {nav}
 </article>
-<aside class="toc"><div class="toc-inner glass"><h3>目录</h3>{toc_html(p['toc'])}</div></aside>
+{toc_aside}
 </div>"""
         write(ROOT / "posts" / p["slug"] / "index.html", layout(p["title"], body, "", p["summary"], p["url"]))
 
@@ -372,8 +423,8 @@ def main():
     cat_index += '<section class="bento cats">' + "".join(role_tile(c, len(by_cat[c["slug"]])) for c in CATEGORIES) + "</section>"
     for c in CATEGORIES:
         ps = by_cat[c["slug"]]
-        cat_index += f'<div class="sec-head"><h2><span class="ri sm c-{c["color"]}">{ICONS[c["slug"]]}</span>{c["name"]}</h2><a class="more" href="/categories/{c["slug"]}/">查看分类 →</a></div>'
-        cat_index += post_list(ps) if ps else empty_state(c)
+        cat_index += f'<div class="sec-head"><h2><span class="ri sm c-{c["color"]}">{ICONS[c["slug"]]}</span>{c["name"]}</h2><a class="more" href="/categories/{c["slug"]}/">查看全部 {len(ps)} 篇 →</a></div>'
+        cat_index += post_list(ps[:6]) if ps else empty_state(c)
     write(ROOT / "categories" / "index.html", layout("分类", cat_index, "cats", path="/categories/"))
     for c in CATEGORIES:
         ps = by_cat[c["slug"]]
@@ -382,22 +433,38 @@ def main():
   <div><p class="crumb"><a href="/categories/">分类</a> / </p><h1>{c['name']}</h1><p>{c['desc']}</p></div>
   <span class="role-count{' soon' if not ps else ''}">{f'{len(ps)} 篇文章' if ps else '即将更新'}</span>
 </header>"""
-        b += post_list(ps) if ps else empty_state(c)
-        write(ROOT / "categories" / c["slug"] / "index.html", layout(c["name"], b, "cats", c["desc"], f"/categories/{c['slug']}/"))
+        if ps:
+            write_paged(f"/categories/{c['slug']}/", ps, b, c["name"], "cats", c["desc"])
+        else:
+            write(ROOT / "categories" / c["slug"] / "index.html", layout(c["name"], b + empty_state(c), "cats", c["desc"], f"/categories/{c['slug']}/"))
 
     # ---------- 标签 ----------
     tag_index = f'<header class="page-head"><h1>标签</h1><p>共 {len(tags)} 个标签，{len(posts)} 篇文章。</p></header>{chips()}'
     tag_index += '<section class="tag-groups">'
     for t, ps in tag_list:
         tag_index += f'<div class="glass tag-group" id="{tag_slug(t)}"><h2><a href="/tags/{tag_slug(t)}/"># {e(t)}</a><small>{len(ps)}</small></h2><ul>'
-        tag_index += "".join(f'<li><time>{q["date"]}</time><a href="{q["url"]}">{e(q["title"])}</a></li>' for q in ps)
+        tag_index += "".join(f'<li><time>{q["date"]}</time><a href="{q["url"]}">{e(q["title"])}</a></li>' for q in ps[:8])
+        if len(ps) > 8:
+            tag_index += f'<li class="more-li"><a href="/tags/{tag_slug(t)}/">查看全部 {len(ps)} 篇 →</a></li>'
         tag_index += "</ul></div>"
     tag_index += "</section>"
     write(ROOT / "tags" / "index.html", layout("标签", tag_index, "tags", path="/tags/"))
     for t, ps in tag_list:
-        b = f'<header class="page-head"><p class="crumb"><a href="/tags/">标签</a> / </p><h1># {e(t)}</h1><p>共 {len(ps)} 篇文章</p></header>{chips(t)}'
-        b += post_list(ps)
-        write(ROOT / "tags" / tag_slug(t) / "index.html", layout(f"#{t}", b, "tags", path=f"/tags/{tag_slug(t)}/"))
+        b = f'<header class="page-head"><p class="crumb"><a href="/tags/">标签</a> / </p><h1># {e(t)}</h1><p>共 {len(ps)} 篇文章</p></header>{chips(t, limit=HOME_TAGS)}'
+        write_paged(f"/tags/{tag_slug(t)}/", ps, b, f"#{t}", "tags")
+
+    # ---------- 归档（全部文章的紧凑列表） ----------
+    arch = f'<header class="page-head"><h1>归档</h1><p>共 {len(posts)} 篇文章，按月份排列。</p></header><section class="tag-groups archive">'
+    months = {}
+    for p in posts:
+        months.setdefault(p["date"][:7], []).append(p)
+    for m, ps in months.items():
+        y, mo = m.split("-")
+        arch += f'<div class="glass tag-group"><h2>{y} 年 {int(mo)} 月<small>{len(ps)}</small></h2><ul>'
+        arch += "".join(f'<li><time>{q["date"][5:]}</time><a href="{q["url"]}">{e(q["title"])}</a></li>' for q in ps)
+        arch += "</ul></div>"
+    arch += "</section>"
+    write(ROOT / "archive" / "index.html", layout("归档", arch, "archive", "全部文章列表", "/archive/"))
 
     # ---------- 关于 ----------
     about_md, _ = md_render((SRC / "about.md").read_text(encoding="utf-8"))
@@ -423,7 +490,7 @@ def main():
 
     # ---------- 搜索索引 / RSS / sitemap ----------
     idx = [{"title": p["title"], "url": p["url"], "date": p["date"], "tags": p["tags"] + [CAT[p["category"]]["name"]],
-            "summary": p["summary"], "text": p["text"][:6000]} for p in posts]
+            "summary": p["summary"], "text": p["text"][:3000]} for p in posts]
     write(ROOT / "search.json", json.dumps(idx, ensure_ascii=False))
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     entries = "".join(f"""
@@ -434,7 +501,7 @@ def main():
     <updated>{p['date']}T00:00:00+08:00</updated>
     <category term="{xml_escape(CAT[p['category']]['name'])}"/>
     <summary>{xml_escape(p['summary'])}</summary>
-  </entry>""" for p in posts)
+  </entry>""" for p in posts[:30])
     write(ROOT / "feed.xml", f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>{SITE['title']}</title>
@@ -446,14 +513,16 @@ def main():
   <author><name>{SITE['author']}</name></author>{entries}
 </feed>
 """)
-    urls = ["/", "/categories/", "/tags/", "/about/"] + [p["url"] for p in posts] \
+    urls = ["/", "/categories/", "/archive/", "/tags/", "/about/"] + [p["url"] for p in posts] \
         + [f"/categories/{c['slug']}/" for c in CATEGORIES] + [f"/tags/{tag_slug(t)}/" for t in tags]
     write(ROOT / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
           + "".join(f"<url><loc>{SITE['url']}{u}</loc></url>" for u in urls) + "</urlset>\n")
 
     light = HtmlFormatter(style="friendly").get_style_defs('[data-theme="light"] .highlight')
     dark = HtmlFormatter(style="github-dark").get_style_defs('[data-theme="dark"] .highlight')
-    write(ROOT / "assets" / "highlight.css", light + "\n" + dark + "\n")
+    # 笔记里的代码常夹杂中文注释和命令输出，词法分析报错时不要画红框
+    no_err = ".highlight .err { border: 0 !important; color: inherit !important; background: none !important; }"
+    write(ROOT / "assets" / "highlight.css", light + "\n" + dark + "\n" + no_err + "\n")
     (ROOT / ".nojekyll").touch()
     print(f"built {len(posts)} posts, {len(tags)} tags, {len(CATEGORIES)} categories")
 

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL：常用 SQL 片段 · Miss001</title>
+<meta name="description" content="要点：json字符串去重合并.sql、json对象去重.sql、json数组返回最后一位.sql、一行转多行.sql、中文数字转阿拉伯数字.sql、列转行.sql等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MySQL：常用 SQL 片段 · Miss001">
+<meta property="og:description" content="要点：json字符串去重合并.sql、json对象去重.sql、json数组返回最后一位.sql、一行转多行.sql、中文数字转阿拉伯数字.sql、列转行.sql等。">
+<meta property="og:url" content="https://miss001.github.io/posts/mysql-sql-helper/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mysql-sql-helper/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 6 月 6 日</span><span>·</span><span>6 分钟阅读</span></div>
+    <h1>MySQL：常用 SQL 片段</h1>
+    <p class="post-summary">要点：json字符串去重合并.sql、json对象去重.sql、json数组返回最后一位.sql、一行转多行.sql、中文数字转阿拉伯数字.sql、列转行.sql等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mysql/">MySQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="jsonsql">json字符串去重合并.sql<a class="headerlink" href="#jsonsql" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DEFINER</span><span class="o">=`</span><span class="n">root</span><span class="o">`@`%`</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="o">`</span><span class="n">json_merge_distinct</span><span class="o">`</span><span class="p">(</span><span class="n">sourcedata</span><span class="w"> </span><span class="nb">text</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="n">CHARSET</span><span class="w"> </span><span class="n">utf8mb4</span>
+<span class="w">    </span><span class="k">READS</span><span class="w"> </span><span class="k">SQL</span><span class="w"> </span><span class="k">DATA</span>
+<span class="w">    </span><span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="cm">/*</span>
+<span class="cm">  【功能：将'["1","2"],["1","2"]' 字符串去重】</span>
+
+<span class="cm">  版本号     编辑时间       编辑人       修改描述</span>
+
+<span class="cm">  ----------------------------------</span>
+<span class="cm">  */</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">list_data</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">json_arr</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">json_text</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- 格式化字符串</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="k">REPLACE</span><span class="p">(</span><span class="n">REGEXP_REPLACE</span><span class="p">(</span><span class="n">REGEXP_REPLACE</span><span class="p">(</span><span class="n">regexp_replace</span><span class="p">(</span><span class="n">sourcedata</span><span class="p">,</span><span class="s1">', *'</span><span class="p">,</span><span class="s1">','</span><span class="p">),</span><span class="w"> </span><span class="s1">'\\]'</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="w"> </span><span class="p">),</span><span class="w"> </span><span class="s1">'\\['</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="p">),</span><span class="s1">'"'</span><span class="p">,</span><span class="s1">''</span><span class="p">)</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">list_data</span><span class="p">;</span>
+
+
+<span class="w">    </span><span class="k">WITH</span><span class="w"> </span><span class="k">RECURSIVE</span><span class="w"> </span><span class="n">split</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">pos</span><span class="p">,</span><span class="w"> </span><span class="n">REGEXP_SUBSTR</span><span class="p">(</span><span class="n">list_data</span><span class="p">,</span><span class="w"> </span><span class="s1">'[^,]+'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">item</span>
+<span class="w">        </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="w">        </span><span class="k">SELECT</span><span class="w"> </span><span class="n">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">REGEXP_SUBSTR</span><span class="p">(</span><span class="n">list_data</span><span class="p">,</span><span class="w"> </span><span class="s1">'[^,]+'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">        </span><span class="k">FROM</span><span class="w"> </span><span class="n">split</span>
+<span class="w">        </span><span class="k">WHERE</span><span class="w"> </span><span class="n">REGEXP_SUBSTR</span><span class="p">(</span><span class="n">list_data</span><span class="p">,</span><span class="w"> </span><span class="s1">'[^,]+'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">JSON_ARRAYAGG</span><span class="p">(</span><span class="n">item</span><span class="p">),</span>
+<span class="w">           </span><span class="n">GROUP_CONCAT</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+<span class="w">           </span><span class="k">INTO</span><span class="w"> </span><span class="n">json_arr</span><span class="w"> </span><span class="p">,</span><span class="n">json_text</span><span class="w"> </span>
+<span class="w">    </span><span class="k">from</span><span class="p">(</span>
+<span class="w">      </span><span class="k">select</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">item</span>
+<span class="w">      </span><span class="k">from</span><span class="w"> </span><span class="n">split</span><span class="w">  </span>
+<span class="w">    </span><span class="p">)</span><span class="n">t</span><span class="p">;</span><span class="w"> </span>
+
+<span class="w">    </span><span class="k">IF</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'text'</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">        </span><span class="k">RETURN</span><span class="w"> </span><span class="n">json_text</span><span class="p">;</span>
+<span class="w">    </span><span class="k">ELSE</span>
+<span class="w">        </span><span class="k">RETURN</span><span class="w"> </span><span class="n">json_arr</span><span class="p">;</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+
+<span class="k">END</span>
+</code></pre></div>
+
+<h2 id="jsonsql_1">json对象去重.sql<a class="headerlink" href="#jsonsql_1" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DEFINER</span><span class="o">=`</span><span class="n">root</span><span class="o">`@`%`</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="o">`</span><span class="n">json_object_distinct</span><span class="o">`</span><span class="p">(</span><span class="n">json_data</span><span class="w"> </span><span class="n">json</span><span class="p">)</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="n">json</span>
+<span class="w">    </span><span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="cm">/*</span>
+<span class="cm">  【功能：将[{},{}] json数组去重】</span>
+
+<span class="cm">  版本号     编辑时间       编辑人       修改描述</span>
+<span class="cm">  1.0.0      2025-02-21     &lt;USER&gt;       创建函数</span>
+
+<span class="cm">  ----------------------------------</span>
+<span class="cm">  */</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="k">result</span><span class="w"> </span><span class="n">JSON</span><span class="p">;</span>
+
+<span class="w">     </span><span class="c1">-- 使用 JSON_TABLE 遍历 JSON 数组 去重</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">JSON_ARRAYAGG</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">result</span>
+<span class="w">    </span><span class="k">from</span><span class="p">(</span>
+<span class="w">      </span><span class="k">SELECT</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">item</span>
+<span class="w">      </span><span class="k">FROM</span><span class="w"> </span><span class="n">JSON_TABLE</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span><span class="w"> </span><span class="s1">'$[*]'</span>
+<span class="w">          </span><span class="n">COLUMNS</span><span class="w"> </span><span class="p">(</span><span class="n">item</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="n">PATH</span><span class="w"> </span><span class="s1">'$'</span><span class="p">)</span>
+<span class="w">      </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">jt</span>
+<span class="w">    </span><span class="p">)</span><span class="n">t</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">-- 返回最终的 JSON 对象</span>
+<span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="k">result</span><span class="p">;</span>
+
+<span class="k">END</span>
+</code></pre></div>
+
+<h2 id="jsonsql_2">json数组返回最后一位.sql<a class="headerlink" href="#jsonsql_2" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DEFINER</span><span class="o">=`</span><span class="n">root</span><span class="o">`@`%`</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="o">`</span><span class="n">json_reverse_match</span><span class="o">`</span><span class="p">(</span><span class="n">json_text</span><span class="w"> </span><span class="nb">text</span><span class="p">)</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="n">CHARSET</span><span class="w"> </span><span class="n">utf8mb4</span>
+<span class="w">    </span><span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="cm">/*</span>
+<span class="cm">  【功能：将["1","2","3"] 数组返回最后一位】</span>
+
+<span class="cm">  版本号     编辑时间       编辑人       修改描述  </span>
+<span class="cm">  ----------------------------------</span>
+<span class="cm">  */</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">json_array</span><span class="w"> </span><span class="n">JSON</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">result_value</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">IF</span><span class="w"> </span><span class="k">LEFT</span><span class="p">(</span><span class="n">json_text</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'["'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">RIGHT</span><span class="p">(</span><span class="n">json_text</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'"]'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span>
+<span class="w">       </span><span class="k">SET</span><span class="w"> </span><span class="n">json_array</span><span class="o">=</span><span class="n">json_text</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ELSEIF</span><span class="w"> </span><span class="k">LEFT</span><span class="p">(</span><span class="n">json_text</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s1">'['</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">RIGHT</span><span class="p">(</span><span class="n">json_text</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s1">']'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">INSTR</span><span class="p">(</span><span class="n">json_text</span><span class="p">,</span><span class="s1">'"'</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span>
+<span class="w">       </span><span class="k">SET</span><span class="w"> </span><span class="n">json_array</span><span class="o">=</span><span class="n">CONCAT</span><span class="p">(</span><span class="s1">'['</span><span class="p">,</span><span class="n">json_text</span><span class="p">,</span><span class="s1">']'</span><span class="p">);</span>
+<span class="w">    </span><span class="k">ELSE</span>
+<span class="w">       </span><span class="k">SET</span><span class="w"> </span><span class="n">json_array</span><span class="o">=</span><span class="n">CONCAT</span><span class="p">(</span><span class="s1">'["'</span><span class="p">,</span><span class="n">json_text</span><span class="p">,</span><span class="s1">'"]'</span><span class="p">);</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">-- 使用 JSON_TABLE 将 JSON 数组转换为表格，并从后往前查找第一个匹配的值</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">jt</span><span class="p">.</span><span class="n">value</span><span class="w"> </span>
+<span class="w">       </span><span class="k">INTO</span><span class="w"> </span><span class="n">result_value</span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">JSON_TABLE</span><span class="p">(</span>
+<span class="w">        </span><span class="n">json_array</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'$[*]'</span><span class="w"> </span><span class="n">COLUMNS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">            </span><span class="n">idx</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">ORDINALITY</span><span class="p">,</span><span class="w"> </span><span class="c1">-- 添加索引</span>
+<span class="w">            </span><span class="n">value</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="n">PATH</span><span class="w"> </span><span class="s1">'$'</span>
+<span class="w">        </span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">jt</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">jt</span><span class="p">.</span><span class="n">idx</span><span class="w"> </span><span class="k">DESC</span>
+<span class="w">    </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="n">result_value</span><span class="p">;</span>
+<span class="k">END</span>
+</code></pre></div>
+
+<h2 id="sql">一行转多行.sql<a class="headerlink" href="#sql" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="k">SELECT</span>
+<span class="w">        </span><span class="n">substring_index</span><span class="p">(</span><span class="n">substring_index</span><span class="p">(</span><span class="n">B</span><span class="p">.</span><span class="n">zj</span><span class="p">,</span><span class="w"> </span><span class="s1">','</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">.</span><span class="n">help_topic_id</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">),</span><span class="w"> </span><span class="s1">','</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">split_zj</span><span class="w"> </span>
+<span class="w">  </span><span class="k">FROM</span><span class="w"> </span><span class="n">tmp_1</span><span class="w"> </span><span class="n">B</span><span class="p">,</span>
+<span class="w">       </span><span class="n">mysql</span><span class="p">.</span><span class="n">help_topic</span><span class="w"> </span><span class="n">A</span><span class="w"> </span>
+<span class="w">  </span><span class="k">WHERE</span><span class="w"> </span><span class="n">A</span><span class="p">.</span><span class="n">help_topic_id</span><span class="o">&lt;</span><span class="k">length</span><span class="p">(</span><span class="n">B</span><span class="p">.</span><span class="n">zj</span><span class="p">)</span><span class="o">-</span><span class="k">length</span><span class="p">(</span><span class="n">regexp_replace</span><span class="p">(</span><span class="n">B</span><span class="p">.</span><span class="n">zj</span><span class="p">,</span><span class="s1">','</span><span class="p">,</span><span class="s1">''</span><span class="p">))</span><span class="o">+</span><span class="mi">1</span>
+</code></pre></div>
+
+<h2 id="sql_1">中文数字转阿拉伯数字.sql<a class="headerlink" href="#sql_1" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DEFINER</span><span class="o">=`</span><span class="n">root</span><span class="o">`@`%`</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="o">`</span><span class="n">convert_chinese_number</span><span class="o">`</span><span class="p">(</span><span class="k">input</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">))</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="nb">int</span>
+<span class="w">    </span><span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="cm">/*</span>
+<span class="cm">  【功能：判断传入值是阿拉伯数字还是中文数字，阿拉伯数字直接返回，否则将中文数字转为阿拉伯数字返回】</span>
+
+<span class="cm">  版本号     编辑时间       编辑人       修改描述</span>
+
+<span class="cm">  ----------------------------------</span>
+<span class="cm">  */</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="k">result</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">-- 最终转换结果</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">current_char</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w">  </span><span class="c1">-- 当前字符值</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">temp</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="c1">-- 临时映射</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="nb">int</span><span class="p">;</span><span class="w">  </span><span class="c1">-- 单位值</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="nb">boolean</span><span class="p">;</span><span class="w">     </span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">-- 输入字符长度</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">num_map</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'零一二三四五六七八九'</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">unit_map</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'十百千万亿'</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">-- 本身为数字直接返回</span>
+<span class="w">    </span><span class="k">IF</span><span class="w"> </span><span class="n">regexp_like</span><span class="p">(</span><span class="k">input</span><span class="p">,</span><span class="s1">'[0-9]'</span><span class="p">)</span><span class="o">=</span><span class="k">TRUE</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">       </span><span class="k">RETURN</span><span class="w"> </span><span class="k">input</span><span class="p">;</span>
+<span class="w">     </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">SET</span><span class="w"> </span><span class="n">len</span><span class="o">=</span><span class="k">CHAR_LENGTH</span><span class="p">(</span><span class="k">input</span><span class="p">);</span>
+<span class="w">    </span><span class="n">WHILE</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;=</span><span class="n">len</span><span class="w"> </span><span class="k">DO</span>
+<span class="w">      </span><span class="k">SET</span><span class="w"> </span><span class="n">current_char</span><span class="o">=</span><span class="n">substr</span><span class="p">(</span><span class="k">input</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="mi">1</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">IF</span><span class="w"> </span><span class="n">LOCATE</span><span class="p">(</span><span class="n">current_char</span><span class="p">,</span><span class="n">num_map</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">         </span><span class="k">SET</span><span class="w"> </span><span class="n">temp</span><span class="o">=</span><span class="n">LOCATE</span><span class="p">(</span><span class="n">current_char</span><span class="p">,</span><span class="n">num_map</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">      </span><span class="n">ELSEIF</span><span class="w"> </span><span class="n">LOCATE</span><span class="p">(</span><span class="n">current_char</span><span class="p">,</span><span class="n">unit_map</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">        </span><span class="k">CASE</span><span class="w"> </span><span class="n">current_char</span>
+<span class="w">          </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'十'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="o">=</span><span class="mi">10</span><span class="p">;</span>
+<span class="w">          </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'百'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="o">=</span><span class="mi">100</span><span class="p">;</span>
+<span class="w">          </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'千'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="o">=</span><span class="mi">1000</span><span class="p">;</span>
+<span class="w">          </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'万'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="o">=</span><span class="mi">10000</span><span class="p">;</span>
+<span class="w">          </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'亿'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="o">=</span><span class="mi">100000000</span><span class="p">;</span>
+<span class="w">          </span><span class="k">ELSE</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">unit</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">END</span><span class="w"> </span><span class="k">CASE</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">SET</span><span class="w"> </span><span class="k">result</span><span class="o">=</span><span class="k">result</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">temp</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">unit</span><span class="p">;</span>
+<span class="w">        </span><span class="k">SET</span><span class="w"> </span><span class="n">temp</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+
+<span class="w">      </span><span class="k">SET</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="n">WHILE</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">SET</span><span class="w"> </span><span class="k">result</span><span class="o">=</span><span class="n">temp</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="k">result</span><span class="p">;</span>
+<span class="k">END</span>
+</code></pre></div>
+
+<h2 id="sql_2">列转行.sql<a class="headerlink" href="#sql_2" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">WITH</span>
+<span class="n">dt</span><span class="w"> </span><span class="k">as</span><span class="p">(</span>
+<span class="k">select</span><span class="w"> </span><span class="s1">'01'</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dm</span>
+<span class="k">union</span><span class="w"> </span><span class="k">all</span><span class="w"> </span>
+<span class="k">select</span><span class="w"> </span><span class="s1">'02'</span>
+<span class="k">union</span><span class="w"> </span><span class="k">all</span><span class="w"> </span>
+<span class="k">select</span><span class="w"> </span><span class="s1">'03'</span>
+<span class="k">union</span><span class="w"> </span><span class="k">all</span><span class="w"> </span>
+<span class="k">select</span><span class="w"> </span><span class="s1">'04'</span>
+<span class="p">)</span>
+
+<span class="k">SELECT</span><span class="w"> </span>
+<span class="w">    </span><span class="n">zjhm</span><span class="p">,</span>
+<span class="w">        </span><span class="n">dt</span><span class="p">.</span><span class="n">dm</span><span class="p">,</span>
+<span class="w">        </span><span class="p">(</span><span class="k">case</span><span class="w"> </span><span class="n">dt</span><span class="p">.</span><span class="n">dm</span><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s1">'01'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">dm01</span><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s1">'02'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">dm02</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="s1">'03'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">dm03</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="s1">'04'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">dm04</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="k">end</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">num</span>
+<span class="k">FROM</span><span class="w"> </span><span class="p">(</span>
+<span class="w"> </span><span class="k">SELECT</span>
+<span class="w">      </span><span class="s1">'1'</span><span class="w"> </span><span class="n">zjhm</span><span class="p">,</span>
+<span class="w">      </span><span class="mi">4</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dm01</span><span class="p">,</span>
+<span class="w">      </span><span class="mi">6</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dm02</span><span class="p">,</span>
+<span class="w">      </span><span class="mi">5</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dm03</span><span class="p">,</span>
+<span class="w">      </span><span class="mi">8</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dm04</span>
+<span class="w">  </span><span class="k">FROM</span><span class="w">  </span><span class="n">DUAL</span><span class="w"> </span>
+<span class="p">)</span><span class="n">t</span><span class="w"> </span><span class="k">CROSS</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">dt</span>
+</code></pre></div>
+
+<h2 id="sql_3">多行合并为一行.sql<a class="headerlink" href="#sql_3" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span>
+<span class="w">         </span><span class="n">GROUP_CONCAT</span><span class="p">(</span><span class="n">mc</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="n">SEPARATOR</span><span class="w"> </span><span class="s1">','</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">tmp_1</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span>
+</code></pre></div>
+
+<h2 id="sql_4">存储过程中的循环.sql<a class="headerlink" href="#sql_4" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DEFINER</span><span class="o">=`</span><span class="n">root</span><span class="o">`@`%`</span><span class="w"> </span><span class="k">PROCEDURE</span><span class="w"> </span><span class="o">`</span><span class="n">p_template</span><span class="o">`</span><span class="p">()</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="cm">/*  </span>
+<span class="cm">  版本号     编辑时间       编辑人       修改描述       修改描述</span>
+
+<span class="cm">  ----------------------------------</span>
+<span class="cm">  */</span>
+<span class="w">    </span><span class="c1">-- 设置普通变量</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">v_task_id</span><span class="w"> </span><span class="nb">INT</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">v_task_status</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'成功'</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- 设置异常变量</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="nb">CHAR</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'00000'</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- 设置游标变量</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">current_bh</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">current_lb</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">done</span><span class="w"> </span><span class="nb">INT</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">FALSE</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- 游标定义---</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">cur</span><span class="w"> </span><span class="k">CURSOR</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">select</span><span class="w"> </span><span class="n">bh</span><span class="p">,</span><span class="n">lb</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tablename</span><span class="p">;</span><span class="w">    </span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="k">CONTINUE</span><span class="w"> </span><span class="k">HANDLER</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">FOUND</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">done</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- 异常处理</span>
+<span class="w">    </span><span class="c1">-- code = RETURNED_SQLSTATE, </span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="k">CONTINUE</span><span class="w"> </span><span class="k">HANDLER</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">SQLEXCEPTION</span><span class="p">,</span><span class="w"> </span><span class="n">SQLWARNING</span>
+<span class="w">    </span><span class="k">BEGIN</span>
+<span class="w">        </span><span class="k">GET</span><span class="w"> </span><span class="k">DIAGNOSTICS</span><span class="w"> </span><span class="n">CONDITION</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">MESSAGE_TEXT</span><span class="p">;</span>
+<span class="w">        </span><span class="k">SET</span><span class="w"> </span><span class="n">v_task_status</span><span class="o">=</span><span class="s1">'失败'</span><span class="p">;</span>
+<span class="w">        </span><span class="k">SET</span><span class="w"> </span><span class="n">code</span><span class="o">=</span><span class="s1">'400'</span><span class="p">;</span>
+<span class="w">    </span><span class="k">END</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">set</span><span class="w"> </span><span class="k">session</span><span class="w"> </span><span class="n">group_concat_max_len</span><span class="o">=</span><span class="mi">10240</span><span class="p">;</span>
+<span class="c1">-- ------------------------------------------------------------处理业务逻辑------------------------------------------------------------------------</span>
+<span class="w">    </span><span class="c1">-- 打开游标(编号)</span>
+<span class="w">    </span><span class="k">OPEN</span><span class="w"> </span><span class="n">cur</span><span class="p">;</span>
+<span class="w">    </span><span class="n">outer_loop</span><span class="p">:</span><span class="w"> </span><span class="n">LOOP</span>
+<span class="w">      </span><span class="k">FETCH</span><span class="w"> </span><span class="n">cur</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">current_bh</span><span class="p">,</span><span class="n">current_lb</span><span class="p">;</span>
+<span class="w">      </span><span class="k">IF</span><span class="w"> </span><span class="n">done</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">          </span><span class="n">LEAVE</span><span class="w"> </span><span class="n">outer_loop</span><span class="p">;</span>
+<span class="w">      </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- ------------------------------------------------------编号循环--------------------------------------------------------------------------</span>
+<span class="w">      </span><span class="k">BEGIN</span>
+<span class="w">        </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">current_sql</span><span class="w"> </span><span class="n">longtext</span><span class="p">;</span>
+<span class="w">        </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">done_sql</span><span class="w"> </span><span class="nb">INT</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">FALSE</span><span class="p">;</span>
+<span class="w">        </span><span class="c1">-- 需求分析sql配置表</span>
+<span class="w">        </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">cur_sql</span><span class="w"> </span><span class="k">CURSOR</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">select</span><span class="w"> </span><span class="n">sqlconfig</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">sql_config</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">regexp_like</span><span class="p">(</span><span class="n">lb</span><span class="p">,</span><span class="n">current_lb</span><span class="p">)</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">xt_zxbz</span><span class="o">=</span><span class="s1">'0'</span><span class="p">;</span>
+<span class="w">        </span><span class="k">DECLARE</span><span class="w"> </span><span class="k">CONTINUE</span><span class="w"> </span><span class="k">HANDLER</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">FOUND</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">done_sql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">-- 打开游标(sql)</span>
+<span class="w">        </span><span class="k">OPEN</span><span class="w"> </span><span class="n">cur_sql</span><span class="p">;</span>
+<span class="w">        </span><span class="n">inner_loop</span><span class="p">:</span><span class="w"> </span><span class="n">LOOP</span>
+<span class="w">          </span><span class="k">FETCH</span><span class="w"> </span><span class="n">cur_sql</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">current_sql</span><span class="p">;</span>
+<span class="w">          </span><span class="k">IF</span><span class="w"> </span><span class="n">done_sql</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">              </span><span class="n">LEAVE</span><span class="w"> </span><span class="n">inner_loop</span><span class="p">;</span>
+<span class="w">          </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+<span class="w">          </span><span class="c1">-- ------------------------------------------------------sql循环--------------------------------------------------------------------------</span>
+<span class="w">          </span><span class="k">SET</span><span class="w"> </span><span class="n">v_task_status</span><span class="o">=</span><span class="s1">'成功'</span><span class="p">;</span>
+<span class="w">          </span><span class="k">SET</span><span class="w"> </span><span class="n">code</span><span class="o">=</span><span class="s1">'200'</span><span class="p">;</span>
+<span class="w">          </span><span class="k">SET</span><span class="w"> </span><span class="n">msg</span><span class="o">=</span><span class="s1">''</span><span class="p">;</span>
+
+<span class="w">          </span><span class="k">BEGIN</span><span class="w"> </span>
+<span class="w">             </span><span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">logs</span><span class="p">(</span><span class="n">p_name</span><span class="p">,</span><span class="w"> </span><span class="n">bh</span><span class="p">,</span><span class="w"> </span><span class="n">lb</span><span class="p">,</span><span class="w"> </span><span class="n">lrsj</span><span class="p">,</span><span class="w"> </span><span class="n">xgsj</span><span class="p">)</span><span class="w"> </span>
+<span class="w">             </span><span class="k">VALUES</span><span class="p">(</span><span class="s1">'p_template'</span><span class="p">,</span><span class="w"> </span><span class="n">current_bh</span><span class="p">,</span><span class="w"> </span><span class="n">current_lb</span><span class="p">,</span><span class="w"> </span><span class="n">now</span><span class="p">(),</span><span class="n">now</span><span class="p">());</span>
+<span class="w">             </span><span class="c1">-- 使用 SELECT INTO 将查询结果存入变量</span>
+<span class="w">             </span><span class="k">SELECT</span><span class="w"> </span><span class="k">MAX</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">v_task_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">logs</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">p_name</span><span class="o">=</span><span class="s1">'p_template'</span><span class="k">AND</span><span class="w"> </span><span class="n">bh</span><span class="o">=</span><span class="n">current_bh</span><span class="p">;</span>
+<span class="w">             </span><span class="c1">-- -------------------------------------------------------------------------------------------------------------------------------</span>
+<span class="w">             </span><span class="k">SET</span><span class="w"> </span><span class="o">@</span><span class="n">v_sql</span><span class="o">=</span><span class="k">REPLACE</span><span class="p">(</span><span class="k">REPLACE</span><span class="p">(</span><span class="n">current_sql</span><span class="p">,</span>
+<span class="w">                                        </span><span class="s1">'current_bh'</span><span class="p">,</span>
+<span class="w">                                        </span><span class="n">concat</span><span class="p">(</span><span class="s1">''''</span><span class="p">,</span><span class="n">current_bh</span><span class="w"> </span><span class="p">,</span><span class="s1">''''</span><span class="p">)</span>
+<span class="w">                                        </span><span class="p">),</span>
+<span class="w">                                </span><span class="s1">'current_lb'</span><span class="p">,</span>
+<span class="w">                                </span><span class="n">concat</span><span class="p">(</span><span class="s1">''''</span><span class="p">,</span><span class="n">current_lb</span><span class="w"> </span><span class="p">,</span><span class="s1">''''</span><span class="p">)</span>
+<span class="w">                                </span><span class="p">);</span>
+<span class="w">             </span><span class="c1">-- 调试打印</span>
+<span class="w">             </span><span class="k">UPDATE</span><span class="w"> </span><span class="n">logs</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">message</span><span class="o">=</span><span class="n">CONCAT</span><span class="p">(</span><span class="s1">'SQL:'</span><span class="p">,</span><span class="n">IFNULL</span><span class="p">(</span><span class="o">@</span><span class="n">v_sql</span><span class="p">,</span><span class="s1">''</span><span class="p">))</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">task_id</span><span class="o">=</span><span class="n">v_task_id</span><span class="p">;</span>
+<span class="w">             </span><span class="c1">-- 执行SQL</span>
+<span class="w">             </span><span class="k">PREPARE</span><span class="w"> </span><span class="n">stmt</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">@</span><span class="n">v_sql</span><span class="p">;</span>
+<span class="w">             </span><span class="k">EXECUTE</span><span class="w"> </span><span class="n">stmt</span><span class="p">;</span>
+<span class="w">             </span><span class="k">DEALLOCATE</span><span class="w"> </span><span class="k">PREPARE</span><span class="w"> </span><span class="n">stmt</span><span class="p">;</span>
+<span class="w">             </span><span class="c1">-- --------------------------------------------------------------------------------------------------------------------------------------  </span>
+<span class="w">             </span><span class="k">UPDATE</span><span class="w"> </span><span class="n">logs</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">xgsj</span><span class="o">=</span><span class="n">NOW</span><span class="p">(),</span><span class="o">`</span><span class="n">code</span><span class="o">`=</span><span class="n">code</span><span class="p">,</span><span class="o">`</span><span class="n">status</span><span class="o">`=</span><span class="n">v_task_status</span><span class="p">,</span><span class="n">message</span><span class="o">=</span><span class="n">concat</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span><span class="n">message</span><span class="p">)</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">task_id</span><span class="o">=</span><span class="n">v_task_id</span><span class="p">;</span>
+<span class="w">            </span><span class="c1">-- UPDATE logs SET xt_zhxgsj=NOW(),`code`=code,`status`=v_task_status,message=msg WHERE task_id=v_task_id;</span>
+<span class="w">          </span><span class="k">END</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- --------------------------------------------------------------------------------------------------------------------------------------  </span>
+<span class="w">        </span><span class="c1">-- 结束循环</span>
+<span class="w">        </span><span class="k">END</span><span class="w"> </span><span class="n">LOOP</span><span class="p">;</span>
+<span class="w">        </span><span class="c1">-- 关闭游标(sql)</span>
+<span class="w">        </span><span class="k">CLOSE</span><span class="w"> </span><span class="n">cur_sql</span><span class="p">;</span>
+<span class="w">     </span><span class="k">END</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- --------------------------------------------------------------------------------------------------------------------------------------  </span>
+<span class="w">    </span><span class="c1">-- 结束循环</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="n">LOOP</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">-- 关闭游标(编号)</span>
+<span class="w">    </span><span class="k">CLOSE</span><span class="w"> </span><span class="n">cur</span><span class="p">;</span>
+
+<span class="k">END</span>
+</code></pre></div>
+
+<h2 id="sql_5">存储过程模板.sql<a class="headerlink" href="#sql_5" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DEFINER</span><span class="o">=`</span><span class="n">root</span><span class="o">`@`%`</span><span class="w"> </span><span class="k">PROCEDURE</span><span class="w"> </span><span class="o">`</span><span class="n">p_template</span><span class="o">`</span><span class="p">()</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="cm">/*</span>
+<span class="cm">  【模板】 </span>
+<span class="cm">  版本号     </span>
+<span class="cm">  编辑时间       </span>
+<span class="cm">  编辑人       </span>
+
+<span class="cm">----------------------------------</span>
+<span class="cm">  */</span>
+<span class="w">    </span><span class="o">#</span><span class="err">设置异常变量</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="nb">CHAR</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'00000'</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">#</span><span class="err">设置普通变量</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">V_ID</span><span class="w">   </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">);</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">V_err</span><span class="w">  </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">50</span><span class="p">);</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">result_value</span><span class="w"> </span><span class="nb">int</span><span class="p">;</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">tjrq</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">8</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">SET</span><span class="w"> </span><span class="n">V_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">REPLACE</span><span class="p">(</span><span class="n">UUID</span><span class="p">(),</span><span class="s1">'-'</span><span class="p">,</span><span class="s1">''</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">#</span><span class="w"> </span><span class="err">异常处理</span>
+<span class="w">    </span><span class="k">DECLARE</span><span class="w"> </span><span class="n">EXIT</span><span class="w"> </span><span class="k">HANDLER</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">SQLEXCEPTION</span>
+<span class="w">    </span><span class="k">BEGIN</span>
+<span class="w">      </span><span class="k">GET</span><span class="w"> </span><span class="k">DIAGNOSTICS</span><span class="w"> </span><span class="n">CONDITION</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">        </span><span class="n">code</span><span class="w"> </span><span class="o">=</span><span class="k">RETURNED_SQLSTATE</span><span class="p">,</span><span class="n">msg</span><span class="o">=</span><span class="k">MESSAGE_TEXT</span><span class="p">;</span>
+<span class="w">                </span><span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="w">                </span><span class="k">UPDATE</span><span class="w"> </span><span class="n">loggs</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">end_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="n">bz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">V_ID</span><span class="p">;</span>
+<span class="w">    </span><span class="k">END</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">loggs</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="n">task_name</span><span class="p">,</span><span class="n">task_desc</span><span class="p">,</span><span class="n">begin_time</span><span class="p">,</span><span class="n">end_time</span><span class="p">)</span>
+<span class="w">    </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="n">V_ID</span><span class="p">,</span><span class="s1">'p_template'</span><span class="p">,</span><span class="w"> </span><span class="s1">'模板'</span><span class="p">,</span><span class="w"> </span><span class="n">now</span><span class="p">(),</span><span class="w"> </span><span class="k">NULL</span><span class="p">);</span>
+<span class="w">    </span><span class="k">commit</span><span class="p">;</span>
+
+<span class="c1">-- ------------------------------------需求------------------------------------------------------------</span>
+<span class="c1">-- ------------------------------------逻辑------------------------------------------------------------</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="w"> </span><span class="k">ISOLATION</span><span class="w"> </span><span class="k">LEVEL</span><span class="w"> </span><span class="k">READ</span><span class="w"> </span><span class="k">COMMITTED</span><span class="p">;</span>
+<span class="k">START</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="c1">-- --------------------------</span>
+
+<span class="c1">-- ------------------------------------------------------------------------------------------------</span>
+<span class="o">#</span><span class="w"> </span><span class="err">正常结束</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">loggs</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">end_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="n">bz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'完成'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">V_ID</span><span class="p">;</span>
+
+<span class="k">END</span>
+</code></pre></div>
+
+<h2 id="sql_6">行转列.sql<a class="headerlink" href="#sql_6" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span>
+<span class="w">      </span><span class="n">zjhm</span><span class="p">,</span>
+<span class="w">      </span><span class="k">sum</span><span class="p">(</span><span class="k">case</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="n">dm</span><span class="o">=</span><span class="s1">'01'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">end</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="ss">"01"</span><span class="p">,</span>
+<span class="w">      </span><span class="k">sum</span><span class="p">(</span><span class="k">case</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="n">dm</span><span class="o">=</span><span class="s1">'02'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">end</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="ss">"02"</span><span class="p">,</span>
+<span class="w">      </span><span class="k">sum</span><span class="p">(</span><span class="k">case</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="n">dm</span><span class="o">=</span><span class="s1">'03'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">end</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="ss">"03"</span><span class="p">,</span>
+<span class="w">      </span><span class="k">sum</span><span class="p">(</span><span class="k">case</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="n">dm</span><span class="o">=</span><span class="s1">'04'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">end</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="ss">"04"</span>
+<span class="w">  </span><span class="k">FROM</span><span class="p">(</span>
+<span class="w">      </span><span class="k">SELECT</span>
+<span class="w">            </span><span class="n">zjhm</span><span class="p">,</span>
+<span class="w">        </span><span class="n">dm</span><span class="p">,</span>
+<span class="w">        </span><span class="n">num</span>
+<span class="w">      </span><span class="k">FROM</span><span class="w"> </span><span class="n">tmp_1</span><span class="w"> </span>
+<span class="w">   </span><span class="p">)</span><span class="n">B</span><span class="w"> </span><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">zjhm</span>
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/tree/main/database/mysql/sql-helper">Miss001/data-engineering-notes · database/mysql/sql-helper</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/spark-sheng-ji-cdh6-3-0-bu-shu-spark3/"><small>上一篇</small>CDH 6.3.0 部署 Spark 3</a><a class="glass next" href="/posts/kylin-sheng-ji-yuan-shu-ju-qing-li/"><small>下一篇</small>Kylin：元数据清理</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#jsonsql">json字符串去重合并.sql</a></li><li><a href="#jsonsql_1">json对象去重.sql</a></li><li><a href="#jsonsql_2">json数组返回最后一位.sql</a></li><li><a href="#sql">一行转多行.sql</a></li><li><a href="#sql_1">中文数字转阿拉伯数字.sql</a></li><li><a href="#sql_2">列转行.sql</a></li><li><a href="#sql_3">多行合并为一行.sql</a></li><li><a href="#sql_4">存储过程中的循环.sql</a></li><li><a href="#sql_5">存储过程模板.sql</a></li><li><a href="#sql_6">行转列.sql</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

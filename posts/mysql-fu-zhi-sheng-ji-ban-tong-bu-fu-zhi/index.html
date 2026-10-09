@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL 复制：升级半同步复制 · Miss001</title>
+<meta name="description" content="前提： 主服务器：HOST_IP:3306 从服务器：HOST_IP:3306 主/从服务器show variables like &#x27;%have_dynamic_loading%&#x27;…">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MySQL 复制：升级半同步复制 · Miss001">
+<meta property="og:description" content="前提： 主服务器：HOST_IP:3306 从服务器：HOST_IP:3306 主/从服务器show variables like &#x27;%have_dynamic_loading%&#x27;…">
+<meta property="og:url" content="https://miss001.github.io/posts/mysql-fu-zhi-sheng-ji-ban-tong-bu-fu-zhi/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mysql-fu-zhi-sheng-ji-ban-tong-bu-fu-zhi/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 6 月 24 日</span><span>·</span><span>2 分钟阅读</span></div>
+    <h1>MySQL 复制：升级半同步复制</h1>
+    <p class="post-summary">前提： 主服务器：HOST_IP:3306 从服务器：HOST_IP:3306 主/从服务器show variables like &#x27;%have_dynamic_loading%&#x27;…</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mysql/">MySQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<p>前提：</p>
+<p>主服务器：&lt;HOST_IP&gt;:3306 </p>
+<p>从服务器：&lt;HOST_IP&gt;:3306 </p>
+<ul>
+<li>主/从服务器show variables like '%have_dynamic_loading%';为YES</li>
+<li>主从复制已经开启并且有效</li>
+<li>一定不能配置多个复制通道，半同步复制仅与默认复制通道兼容</li>
+</ul>
+<p><strong>主服务器</strong></p>
+<ol>
+<li>检查环境，YES即可</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">show</span><span class="w"> </span><span class="n">variables</span><span class="w"> </span><span class="k">like</span><span class="w"> </span><span class="s1">'%have_dynamic_loading%'</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="2">
+<li>登陆主节点</li>
+</ol>
+<div class="highlight"><pre><span></span><code>mysql<span class="w"> </span>–uroot<span class="w"> </span>–p&lt;PASSWORD&gt;
+</code></pre></div>
+
+<ol start="3">
+<li>下载插件</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="n">INSTALL</span><span class="w"> </span><span class="n">PLUGIN</span><span class="w"> </span><span class="n">rpl_semi_sync_master</span><span class="w"> </span><span class="n">SONAME</span><span class="s1">'semisync_master.so'</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="4">
+<li>查看插件</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">PLUGINS</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="5">
+<li>启用半同步复制</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="k">GLOBAL</span><span class="w"> </span><span class="n">rpl_semi_sync_master_enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="6">
+<li>配置超时时间，默认10秒（10000）</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="k">GLOBAL</span><span class="w"> </span><span class="n">rpl_semi_sync_master_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="7">
+<li>修改配置文件my.cnf</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="na">rpl_semi_sync_master_enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1</span>
+<span class="na">rpl_semi_sync_master_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1000</span>
+</code></pre></div>
+
+<p><strong>从服务器</strong></p>
+<ol>
+<li>检查环境，YES即可</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">show</span><span class="w"> </span><span class="n">variables</span><span class="w"> </span><span class="k">like</span><span class="w"> </span><span class="s1">'%have_dynamic_loading%'</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="2">
+<li>登陆主节点</li>
+</ol>
+<div class="highlight"><pre><span></span><code>mysql<span class="w"> </span>–uroot<span class="w"> </span>–p&lt;PASSWORD&gt;
+</code></pre></div>
+
+<ol start="3">
+<li>下载插件</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="n">INSTALL</span><span class="w"> </span><span class="n">PLUGIN</span><span class="w"> </span><span class="n">rpl_semi_sync_slave</span><span class="w"> </span><span class="n">SONAME</span><span class="s1">'semisync_slave.so'</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="4">
+<li>查看插件</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">PLUGINS</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="5">
+<li>停止复制线程</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="n">STOP</span><span class="w"> </span><span class="n">SLAVE</span><span class="w"> </span><span class="n">IO_THREAD</span><span class="p">;</span><span class="w"> </span>
+</code></pre></div>
+
+<ol start="6">
+<li>启用半同步复制</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="k">GLOBAL</span><span class="w"> </span><span class="n">rpl_semi_sync_slave_enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="7">
+<li>配置超时时间，默认10秒（10000）</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="k">START</span><span class="w"> </span><span class="n">SLAVE</span><span class="w"> </span><span class="n">IO_THREAD</span><span class="p">;</span>
+</code></pre></div>
+
+<ol start="8">
+<li>修改配置文件my.cnf</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="nv">rpl_semi_sync_slave_enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<p><strong>查看参数</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">VARIABLES</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">'rpl_semi_sync%'</span><span class="p">;</span>
+</code></pre></div>
+
+<p><a href="http://www.deituicms.com/mysql8cn/cn/replication.html#sysvar_rpl_semi_sync_master_enabled"><code>rpl_semi_sync_master_enabled</code></a>在主服务器上启用半同步复制</p>
+<p><a href="http://www.deituicms.com/mysql8cn/cn/replication.html#sysvar_rpl_semi_sync_master_timeout"><code>rpl_semi_sync_master_timeout</code></a>控制主机在超时并恢复到异步复制之前等待提交来自从机的确认的时间</p>
+<p><a href="http://www.deituicms.com/mysql8cn/cn/replication.html#sysvar_rpl_semi_sync_slave_enabl"><code>rpl_semi_sync_slave_enabled</code></a>在从服务器上启用半同步复制</p>
+<p><strong>查看状态</strong></p>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="k">SHOW</span><span class="w"> </span><span class="n">STATUS</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">'Rpl_semi_sync%'</span><span class="p">;</span>
+</code></pre></div>
+
+<p><a href="http://www.deituicms.com/mysql8cn/cn/server-administration.html#statvar_Rpl_semi_sync_master_status"><code>Rpl_semi_sync_master_status</code></a> 监视主服务器当前是使用异步还是半同步复制</p>
+<p><a href="http://www.deituicms.com/mysql8cn/cn/server-administration.html#statvar_Rpl_semi_sync_master_clients"><code>Rpl_semi_sync_master_clients</code></a> 查看连接了多少个半同步从站</p>
+<p><a href="http://www.deituicms.com/mysql8cn/cn/server-administration.html#statvar_Rpl_semi_sync_master_yes_tx"><code>Rpl_semi_sync_master_yes_tx</code></a>从站成功确认的提交数</p>
+<p><a href="http://www.deituicms.com/mysql8cn/cn/server-administration.html#statvar_Rpl_semi_sync_master_no_tx"><code>Rpl_semi_sync_master_no_tx</code></a>从站未成功确认的提交数</p>
+<p><a href="http://www.deituicms.com/mysql8cn/cn/server-administration.html#statvar_Rpl_semi_sync_slave_status"><code>Rpl_semi_sync_slave_status</code></a>半同步复制当前是否在从站上运行</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/mysql/%E5%A4%8D%E5%88%B6/%E5%8D%87%E7%BA%A7%E5%8D%8A%E5%90%8C%E6%AD%A5%E5%A4%8D%E5%88%B6.md">Miss001/data-engineering-notes · database/mysql/复制/升级半同步复制.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/opengauss-wen-ti-chu-li-suo-cha-xun-chu-li/"><small>上一篇</small>openGauss 问题处理：锁查询处理</a><a class="glass next" href="/posts/zhong-dian/"><small>下一篇</small>国产数据库：重点</a></nav>
+</article>
+<aside class="toc"></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

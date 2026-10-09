@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kylin：问题记录 · Miss001</title>
+<meta name="description" content="1.删除cube报错 页面编辑drop cube报错“java.lang.outofmemoryerror:java heap space”. 调用接口：/kylin/api/cu…">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Kylin：问题记录 · Miss001">
+<meta property="og:description" content="1.删除cube报错 页面编辑drop cube报错“java.lang.outofmemoryerror:java heap space”. 调用接口：/kylin/api/cu…">
+<meta property="og:url" content="https://miss001.github.io/posts/kylin-sheng-ji-wen-ti-ji-lu/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/kylin-sheng-ji-wen-ti-ji-lu/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 5 月 16 日</span><span>·</span><span>1 分钟阅读</span></div>
+    <h1>Kylin：问题记录</h1>
+    <p class="post-summary">1.删除cube报错 页面编辑drop cube报错“java.lang.outofmemoryerror:java heap space”. 调用接口：/kylin/api/cu…</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/bigdata/">大数据</a><a href="/tags/kylin/">Kylin</a><a href="/tags/spark/">Spark</a></span></div>
+  </header>
+  <div class="glass prose">
+<p><strong>1.删除cube报错</strong>
+页面编辑drop cube报错“java.lang.outofmemoryerror:java heap space”.<br />
+调用接口：/kylin/api/cubes/cubename<br />
+解决：使用新的接口删除cube  </p>
+<div class="highlight"><pre><span></span><code><span class="k">delete</span><span class="w"> </span><span class="o">/</span><span class="n">kylin</span><span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">cubes</span><span class="o">/</span><span class="n">cubename</span><span class="o">/</span><span class="n">fast</span>
+</code></pre></div>
+
+<p>参考：https://github.com/apache/kylin/blob/kylin4/server-base/src/main/java/org/apache/kylin/rest/controller/CubeController.java#L708</p>
+<p><strong>2.编辑cube报错</strong><br />
+页面编辑cube报错“java.lang.outofmemoryerror:java heap space”.  <br />
+解决：删除元数据表中历史数据，保留最近三天的数据。</p>
+<div class="highlight"><pre><span></span><code><span class="k">delete</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">kylin_metadata</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">meta_table_key</span><span class="w"> </span><span class="k">like</span><span class="w"> </span><span class="s1">'/execute%'</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">from_unixtime</span><span class="p">(</span><span class="n">meta_table_ts</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span><span class="s1">'%Y-%m-%d %H:%i:%s'</span><span class="p">)</span><span class="o">&lt;</span><span class="n">date_sub</span><span class="p">(</span><span class="k">current_date</span><span class="p">,</span><span class="nb">interval</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="k">day</span><span class="p">);</span>
+<span class="k">delete</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">kylin_metadata_log</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">meta_table_key</span><span class="w"> </span><span class="k">like</span><span class="w"> </span><span class="s1">'/execute_output%'</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">from_unixtime</span><span class="p">(</span><span class="n">meta_table_ts</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span><span class="s1">'%Y-%m-%d %H:%i:%s'</span><span class="p">)</span><span class="o">&lt;</span><span class="n">date_sub</span><span class="p">(</span><span class="k">current_date</span><span class="p">,</span><span class="nb">interval</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="k">day</span><span class="p">);</span>
+</code></pre></div>
+
+<p>原因：drop/purge/edit cube的时候程序会加载kylin_metadata、kylin_metadata_log进内存，数据过多会导致内存不足。<br />
+参考：  <br />
+1.https://github.com/apache/kylin/blob/kylin4/server-base/src/main/java/org/apache/kylin/rest/service/CubeService.java<br />
+2.https://github.com/apache/kylin/blob/kylin4/server-base/src/main/java/org/apache/kylin/rest/controller/CubeController.java#L708<br />
+3.https://github.com/apache/kylin/blob/kylin4/core-cube/src/main/java/org/apache/kylin/cube/CubeUpdate.java</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/bigdata/kylin%E5%8D%87%E7%BA%A7/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95.md">Miss001/data-engineering-notes · bigdata/kylin升级/问题记录.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/etl-kettle-can-kao-lian-jie/"><small>上一篇</small>Kettle：参考链接</a><a class="glass next" href="/posts/mysql-fu-zhi-xiang-guan-ming-ling/"><small>下一篇</small>MySQL 复制：相关命令</a></nav>
+</article>
+<aside class="toc"></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

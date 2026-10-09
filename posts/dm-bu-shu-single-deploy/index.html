@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>达梦 部署：单节点部署 · Miss001</title>
+<meta name="description" content="要点：创建用户、创建目录、挂载镜像、安装、创建数据库实例、注册数据库服务等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="达梦 部署：单节点部署 · Miss001">
+<meta property="og:description" content="要点：创建用户、创建目录、挂载镜像、安装、创建数据库实例、注册数据库服务等。">
+<meta property="og:url" content="https://miss001.github.io/posts/dm-bu-shu-single-deploy/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/dm-bu-shu-single-deploy/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 6 月 11 日</span><span>·</span><span>1 分钟阅读</span></div>
+    <h1>达梦 部署：单节点部署</h1>
+    <p class="post-summary">要点：创建用户、创建目录、挂载镜像、安装、创建数据库实例、注册数据库服务等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/dameng/">达梦</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">创建用户<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>groupadd<span class="w"> </span>dinstall
+useradd-g<span class="w"> </span>dinstall<span class="w"> </span>dmdba
+passwd<span class="w"> </span>dmdba
+</code></pre></div>
+
+<h2 id="_2">创建目录<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1">#安装目录</span>
+mkdir<span class="w"> </span>/opt/dm8
+chown<span class="w"> </span>dmdba:dinstall<span class="w"> </span>-R<span class="w"> </span>/opt/dm8/
+
+<span class="c1">#设置TMP临时目录：</span>
+su<span class="w"> </span>dmdba
+mkdir-p<span class="w"> </span>/home/dmdba/tmp
+<span class="c1">##设置环境变量</span>
+vi<span class="w"> </span>/home/dmdba/.bash_profile
+<span class="nb">export</span><span class="w"> </span><span class="nv">DM_INSTALL_TMPDIR</span><span class="o">=</span>/home/dmdba/tmp
+<span class="nb">source</span><span class="w"> </span>/home/dmdba/.bash_profile
+</code></pre></div>
+
+<h2 id="_3">挂载镜像<a class="headerlink" href="#_3" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>mount<span class="w"> </span>-o<span class="w"> </span>loop<span class="w"> </span>dm8_20241227_x86_rh7_64.iso<span class="w">  </span>/mnt
+</code></pre></div>
+
+<h2 id="_4">安装<a class="headerlink" href="#_4" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>dmdba
+<span class="nb">cd</span><span class="w"> </span>/mnt
+./DMInstall.bin<span class="w">  </span>-i
+<span class="c1">#等待安装完成后切换至root用户执行</span>
+/opt/dm8/script/root/root_installer.sh
+</code></pre></div>
+
+<h2 id="_5">创建数据库实例<a class="headerlink" href="#_5" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>dmdba
+<span class="nb">cd</span><span class="w"> </span>/opt/dm8/bin
+./dminit<span class="w"> </span><span class="nv">DB_NAME</span><span class="o">=</span>PROD<span class="w"> </span><span class="nv">INSTANCE_NAME</span><span class="o">=</span>TEST<span class="w"> </span><span class="nv">PORT_NUM</span><span class="o">=</span><span class="m">5237</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span>/opt/dm8/data<span class="w"> </span><span class="nv">SYSDBA_PWD</span><span class="o">=</span>&lt;PASSWORD&gt;<span class="w"> </span><span class="nv">SYSAUDITOR_PWD</span><span class="o">=</span>&lt;PASSWORD&gt;
+</code></pre></div>
+
+<h2 id="_6">注册数据库服务<a class="headerlink" href="#_6" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>./script/root/dm_service_installer.sh<span class="w"> </span>-t<span class="w"> </span>dmserver<span class="w"> </span>-p<span class="w"> </span>TEST<span class="w"> </span>-dm_ini<span class="w"> </span>/opt/dm8/data/PROD/dm.ini
+</code></pre></div>
+
+<h2 id="_7">启动数据库<a class="headerlink" href="#_7" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>dmdba
+<span class="nb">cd</span><span class="w"> </span>/opt/dm8/bin
+./DmServiceTEST<span class="w"> </span>start
+</code></pre></div>
+
+<h2 id="_8">连接<a class="headerlink" href="#_8" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>dmdba
+<span class="nb">cd</span><span class="w"> </span>/opt/dm8/
+./tool/disql
+connect<span class="w"> </span>sysdba@&lt;HOST_IP&gt;:5237
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/dm/%E9%83%A8%E7%BD%B2/single-deploy.md">Miss001/data-engineering-notes · database/dm/部署/single-deploy.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/cdh6-3-0-bu-shu-an-zhuang-wen-dang/"><small>上一篇</small>CDH：安装文档</a><a class="glass next" href="/posts/oceanbase-zhi-shi-jie-gou-3-ji-ben-yu-fa-oracle-mo-shi/"><small>下一篇</small>OceanBase 知识结构：基本语法-Oracle模式</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">创建用户</a></li><li><a href="#_2">创建目录</a></li><li><a href="#_3">挂载镜像</a></li><li><a href="#_4">安装</a></li><li><a href="#_5">创建数据库实例</a></li><li><a href="#_6">注册数据库服务</a></li><li><a href="#_7">启动数据库</a></li><li><a href="#_8">连接</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

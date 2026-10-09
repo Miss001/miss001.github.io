@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openGauss 问题处理 · Miss001</title>
+<meta name="description" content="要点：could not start server、create extension if not exists dblink、navicate编辑表结构报错。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="openGauss 问题处理 · Miss001">
+<meta property="og:description" content="要点：could not start server、create extension if not exists dblink、navicate编辑表结构报错。">
+<meta property="og:url" content="https://miss001.github.io/posts/opengauss-wen-ti-chu-li-wen-ti-chu-li/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/opengauss-wen-ti-chu-li-wen-ti-chu-li/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 5 月 5 日</span><span>·</span><span>2 分钟阅读</span></div>
+    <h1>openGauss 问题处理</h1>
+    <p class="post-summary">要点：could not start server、create extension if not exists dblink、navicate编辑表结构报错。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/opengauss/">openGauss</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="1could-not-start-server">1.could not start server<a class="headerlink" href="#1could-not-start-server" title="本节链接">#</a></h2>
+<ul>
+<li>
+<p>报错信息 <br />
+  2024-11-03 21:45:54.983 67283562.1 [unknown] 140303456721600 [unknown] 0 dn_6001 55000  0 [BACKEND] FATAL:  data directory "/opt/openGauss/install/data/dn" has group or world access  <br />
+  2024-11-03 21:45:54.983 67283562.1 [unknown] 140303456721600 [unknown] 0 dn_6001 55000  0 [BACKEND] DETAIL:  Permissions should be u=rwx (0700).   </p>
+</li>
+<li>
+<p>原因<br />
+  数据目录权限不正确    </p>
+</li>
+<li>
+<p>处理   </p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code>chmod<span class="w"> </span>-R<span class="w"> </span><span class="m">700</span><span class="w"> </span>/opt/openGauss/install/dn
+</code></pre></div>
+
+<h2 id="2create-extension-if-not-exists-dblink">2.create extension if not exists dblink<a class="headerlink" href="#2create-extension-if-not-exists-dblink" title="本节链接">#</a></h2>
+<ul>
+<li>
+<p>报错信息  <br />
+  gsql: FATAL:  could not load library "dblink.so": libltdl.so.7: cannot open shared object file: No such file or directory  </p>
+</li>
+<li>
+<p>原因<br />
+  缺少包  </p>
+</li>
+<li>
+<p>处理    </p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>libtool-ltdl
+</code></pre></div>
+
+<h2 id="3navicate">3.navicate编辑表结构报错<a class="headerlink" href="#3navicate" title="本节链接">#</a></h2>
+<ul>
+<li>报错信息    </li>
+<li>报错原因<br />
+  opengauss 创建兼容mysql的database后，在navicate中设计表会首先执行以下sql,语法不兼容  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">T</span>
+<span class="w">  </span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">OID</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">TRIGGER_SCHEMA</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">TRIGGER_NAME</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="k">C</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">trigger_table_name</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">em</span><span class="p">.</span><span class="nb">TEXT</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">character_data</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">event_manipulation</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="k">C</span><span class="p">.</span><span class="n">relkind</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">trigger_table_type</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">nsp</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">referenced_table_schema</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">cs</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">referenced_table</span><span class="p">,</span>
+<span class="w">  </span><span class="n">T</span><span class="p">.</span><span class="n">tgdeferrable</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">is_deferrable</span><span class="p">,</span>
+<span class="w">  </span><span class="n">T</span><span class="p">.</span><span class="n">tginitdeferred</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">is_deferred</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">function_schema</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="n">P</span><span class="p">.</span><span class="n">proname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">function_name</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span>
+<span class="w">    </span><span class="ss">"substring"</span><span class="w"> </span><span class="p">(</span>
+<span class="w">      </span><span class="n">pg_get_triggerdef</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="p">),</span>
+<span class="w">      </span><span class="p">(</span><span class="w"> </span><span class="ss">"position"</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="ss">"substring"</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">pg_get_triggerdef</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="p">),</span><span class="w"> </span><span class="mi">48</span><span class="w"> </span><span class="p">),</span><span class="w"> </span><span class="s1">'EXECUTE PROCEDURE'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">47</span><span class="p">)</span><span class="w"> </span>
+<span class="w">    </span><span class="p">)</span><span class="w"> </span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">character_data</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">action_statement</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgtype</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'ROW'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">ELSE</span><span class="s1">'STATEMENT'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">END</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">character_data</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">for_each</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span><span class="w"> </span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgtype</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'BEFORE'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">ELSE</span><span class="s1">'AFTER'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">END</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">character_data</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">fire_time</span><span class="p">,</span>
+<span class="w">  </span><span class="n">T</span><span class="p">.</span><span class="n">tgenabled</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">enabled</span><span class="p">,</span>
+<span class="w">  </span><span class="p">(</span>
+<span class="w">    </span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="n">pg_has_role</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="k">C</span><span class="p">.</span><span class="n">relowner</span><span class="p">,</span><span class="w"> </span><span class="s1">'USAGE'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">        </span><span class="p">(</span><span class="k">SELECT</span>
+<span class="w">            </span><span class="n">rm</span><span class="p">.</span><span class="n">M</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">M</span><span class="w"> </span>
+<span class="w">          </span><span class="k">FROM</span>
+<span class="w">            </span><span class="n">regexp_matches</span><span class="p">(</span><span class="w"> </span><span class="n">pg_get_triggerdef</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">E</span><span class="s1">'.{35,} WHEN \((.+)\) EXECUTE PROCEDURE'</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="n">rm</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">M</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>
+<span class="w">            </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span>
+<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">ELSE</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span>
+<span class="w">        </span><span class="k">END</span><span class="w"> </span>
+<span class="w">      </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">character_data</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">CONDITION</span><span class="p">,</span>
+<span class="w">      </span><span class="n">tc</span><span class="p">.</span><span class="n">event_object_column</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">update_columns</span><span class="p">,</span>
+<span class="w">      </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgconstraint</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">is_constraint</span><span class="p">,</span>
+<span class="w">      </span><span class="n">T</span><span class="p">.</span><span class="n">tgisinternal</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">is_internal</span><span class="p">,</span>
+<span class="w">      </span><span class="n">obj_description</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">COMMENT</span><span class="w"> </span>
+<span class="w">    </span><span class="k">FROM</span>
+<span class="w">      </span><span class="n">pg_trigger</span>
+<span class="w">      </span><span class="n">T</span><span class="w"> </span><span class="k">INNER</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">C</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">C</span><span class="p">.</span>
+<span class="w">      </span><span class="n">OID</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">C</span><span class="p">.</span><span class="n">relnamespace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="p">.</span>
+<span class="w">      </span><span class="n">OID</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_proc</span><span class="w"> </span><span class="n">P</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgfoid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">P</span><span class="p">.</span>
+<span class="w">      </span><span class="n">OID</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="n">np</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">P</span><span class="p">.</span><span class="n">pronamespace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span>
+<span class="w">      </span><span class="n">OID</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="s1">'INSERT'</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="s1">'DELETE'</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w"> </span><span class="s1">'UPDATE'</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="s1">'TRUNCATE'</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="n">em</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">num</span><span class="p">,</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgtype</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">em</span><span class="p">.</span><span class="n">num</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">      </span><span class="k">LEFT</span><span class="w"> </span><span class="k">OUTER</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="n">OID</span><span class="p">,</span><span class="w"> </span><span class="n">relnamespace</span><span class="p">,</span><span class="w"> </span><span class="n">relname</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="n">cs</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgconstrrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cs</span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="p">)</span>
+<span class="w">      </span><span class="k">LEFT</span><span class="w"> </span><span class="k">OUTER</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="n">OID</span><span class="p">,</span><span class="w"> </span><span class="n">nspname</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="n">nsp</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">cs</span><span class="p">.</span><span class="n">relnamespace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nsp</span><span class="p">.</span><span class="n">OID</span><span class="w"> </span><span class="p">)</span>
+<span class="w">      </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">triggered_update_columns</span><span class="w"> </span><span class="n">tc</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">tc</span><span class="p">.</span><span class="k">TRIGGER_SCHEMA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>
+<span class="w">      </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">tc</span><span class="p">.</span><span class="k">TRIGGER_NAME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">tgname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>
+<span class="w">      </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">tc</span><span class="p">.</span><span class="n">event_object_schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>
+<span class="w">      </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">tc</span><span class="p">.</span><span class="n">event_object_table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">C</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>
+<span class="w">    </span><span class="k">WHERE</span>
+<span class="w">      </span><span class="p">(</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'test'</span><span class="w"> </span>
+<span class="w">      </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="k">C</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">::</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">sql_identifier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'tmp1'</span><span class="w"> </span>
+<span class="w">    </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span>
+<span class="w">  </span><span class="k">C</span><span class="p">.</span><span class="n">relname</span><span class="p">,</span>
+<span class="w">  </span><span class="n">T</span><span class="p">.</span><span class="n">tgname</span><span class="w"> </span><span class="k">ASC</span>
+</code></pre></div>
+
+<ul>
+<li>处理 <br />
+  无法处理</li>
+</ul>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/opengauss/%E9%97%AE%E9%A2%98%E5%A4%84%E7%90%86/%E9%97%AE%E9%A2%98%E5%A4%84%E7%90%86.md">Miss001/data-engineering-notes · database/domestic/opengauss/问题处理/问题处理.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/mysql-bei-fen-mysqldump/"><small>上一篇</small>MySQL 备份：mysqldump 备份与恢复</a><a class="glass next" href="/posts/gaussdb-wen-ti-chu-li-suo-cha-xun-chu-li/"><small>下一篇</small>GaussDB 问题处理：锁查询处理</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#1could-not-start-server">1.could not start server</a></li><li><a href="#2create-extension-if-not-exists-dblink">2.create extension if not exists dblink</a></li><li><a href="#3navicate">3.navicate编辑表结构报错</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

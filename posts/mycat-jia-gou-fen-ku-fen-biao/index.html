@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyCat 架构：分库分表 · Miss001</title>
+<meta name="description" content="要点：分库分表、应用场景、表类型、分片规则、全局自增主键、uuid主键。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MyCat 架构：分库分表 · Miss001">
+<meta property="og:description" content="要点：分库分表、应用场景、表类型、分片规则、全局自增主键、uuid主键。">
+<meta property="og:url" content="https://miss001.github.io/posts/mycat-jia-gou-fen-ku-fen-biao/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mycat-jia-gou-fen-ku-fen-biao/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 8 月 21 日</span><span>·</span><span>7 分钟阅读</span></div>
+    <h1>MyCat 架构：分库分表</h1>
+    <p class="post-summary">要点：分库分表、应用场景、表类型、分片规则、全局自增主键、uuid主键。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mycat/">MyCat</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">分库分表<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<p>分布在同一台主机上不同数据库的表，可以进行JOIN查询操作。 </p>
+<p>分布在不同主机上的数据库中的表，不可以进行JOIN查询操作。</p>
+<h3 id="221">2.2.1 应用场景<a class="headerlink" href="#221" title="本节链接">#</a></h3>
+<p><strong>分库</strong></p>
+<p>1）单磁盘容量剧增</p>
+<p>2）高并发场景，单机无法满足</p>
+<p><strong>分表</strong></p>
+<p>1）单表数据过大，查询性能过低</p>
+<h3 id="222">2.2.2 表类型<a class="headerlink" href="#222" title="本节链接">#</a></h3>
+<p><strong>全局表</strong></p>
+<p>1）全局表的insert、update、delete操作会实时地在所有节点同步执行，保持各个节点数据的一致性</p>
+<p>2）全局表的查询操作会从任意节点执行，因为所有节点的数据都一致</p>
+<p>3）全局表可以和任意表进行join操作</p>
+<div class="highlight"><pre><span></span><code>#定义
+<span class="nt">&lt;table</span><span class="w"> </span><span class="na">name=</span><span class="s">"tb_global"</span><span class="w">  </span><span class="na">dataNode=</span><span class="s">"dn1,dn2,dn3"</span><span class="w">  </span><span class="na">primaryKey=</span><span class="s">"ID"</span><span class="w">  </span><span class="na">type=</span><span class="s">"global"</span><span class="w"> </span><span class="nt">/&gt;</span><span class="w"> </span>
+</code></pre></div>
+
+<p><strong>普通表</strong></p>
+<div class="highlight"><pre><span></span><code>#定义
+<span class="nt">&lt;table</span><span class="w"> </span><span class="na">name=</span><span class="s">"tb_normal"</span><span class="w">  </span><span class="na">dataNode=</span><span class="s">"dn1,dn2,dn3"</span><span class="w">  </span><span class="na">primaryKey=</span><span class="s">"ID"</span><span class="w"> </span><span class="nt">/&gt;</span><span class="w"> </span>
+</code></pre></div>
+
+<p><strong>ER表</strong></p>
+<p>基于ER关系（实体关系模型）的数据分片策略，子表的记录与其所关联的父表的记录存放在同一个数据分片中，</p>
+<p>通过表分组(Table Group)保证数据关联查询不会跨库操作。</p>
+<div class="highlight"><pre><span></span><code><span class="nt">&lt;table</span><span class="w"> </span><span class="na">name=</span><span class="s">"tb_parent"</span><span class="w"> </span><span class="na">dataNode=</span><span class="s">"dn$1-2"</span><span class="w"> </span><span class="na">rule=</span><span class="s">"mod-long"</span><span class="w"> </span><span class="nt">&gt;</span>
+<span class="w">  </span><span class="nt">&lt;childTable</span><span class="w"> </span><span class="na">name=</span><span class="s">"tb_child"</span><span class="w"> </span><span class="na">primaryKey=</span><span class="s">"id"</span><span class="w"> </span><span class="na">joinKey=</span><span class="s">"parent_id"</span><span class="w"> </span><span class="na">parentKey=</span><span class="s">"parent_id"</span><span class="nt">/&gt;</span>
+<span class="nt">&lt;/table&gt;</span>
+</code></pre></div>
+
+<h3 id="223">2.2.3 分片规则<a class="headerlink" href="#223" title="本节链接">#</a></h3>
+<p><strong>未定义分片范围根据defaultNode属性配置默认节点，否则写入数据会报错。</strong></p>
+<ul>
+<li><strong>范围分片</strong>（auto-sharding-long）</li>
+</ul>
+<p>根据autopartition-long.txt 文件内容分配。表示为0-10条记录在第一个节点，11-20条记录在第二个节点等</p>
+<div class="highlight"><pre><span></span><code><span class="na">0-10</span><span class="o">=</span><span class="s">0</span>
+<span class="na">11-20</span><span class="o">=</span><span class="s">1</span>
+</code></pre></div>
+
+<p><code>使用场景</code>：</p>
+<p>1）ID分片：适用于根据长整型ID字段进行分片的场景，如用户ID、订单ID等。</p>
+<p>2）时间戳分片：适用于根据时间戳字段进行分片的场景。</p>
+<p><code>缺点</code>：热点问题</p>
+<ul>
+<li><strong>取模分片</strong>（mod-long）</li>
+</ul>
+<p>对指定的字段值进行取模运算（%），然后根据运算结果将数据路由到相应的分片</p>
+<p><code>使用场景</code>：</p>
+<p>1）ID分片：适用于根据长整型ID字段进行分片的场景，如用户ID、订单ID等。</p>
+<p>2）均匀分布：适用于需要均匀分布数据的场景。</p>
+<p><code>缺点</code>：批量写入问题</p>
+<ul>
+<li><strong>范围取模分片</strong>（auto-sharding-rang-mod）</li>
+</ul>
+<p>根据partition-range-mod.txt文件内容配置，先字段值取模运算，后根据结果区间确定具体的分片节点</p>
+<div class="highlight"><pre><span></span><code><span class="na">0-32</span><span class="o">=</span><span class="s">0</span>
+<span class="na">33-64</span><span class="o">=</span><span class="s">1</span>
+</code></pre></div>
+
+<p><code>使用场景</code>：</p>
+<p>1）时间范围分片：适用于需要根据时间范围对数据进行分片的场景，如按月、季度等时间段分片。</p>
+<p>2）数据均匀分布：结合了范围分片和取模分片的特性，能够在保持分片均匀性的同时灵活应对不同范围内数据的分布情况。</p>
+<p><code>缺点</code>：范围查询跨库影响</p>
+<ul>
+<li><strong>枚举分片</strong>（sharding-by-intfile）</li>
+</ul>
+<p>根据partition-hash-int.txt文件内容配置。表示为分片字段值为1在第一个节点，值为2在第二个节点等</p>
+<div class="highlight"><pre><span></span><code><span class="na">1</span><span class="o">=</span><span class="s">0</span>
+<span class="na">2</span><span class="o">=</span><span class="s">1</span>
+</code></pre></div>
+
+<p><code>使用场景</code>：</p>
+<p>1）自定义映射：适用于需要根据复杂映射关系进行分片的场景，如业务逻辑定义的特殊分片规则</p>
+<p><code>缺点</code>：枚举值字段值变更需要手动调整规则</p>
+<ul>
+<li><strong>pattern分片</strong>（sharding-by-pattern）</li>
+</ul>
+<p>基于数据字段的模式（Pattern）来进行分片。</p>
+<p><code>使用场景</code>：</p>
+<p>1）模式匹配分片：适用于根据数据字段的模式来进行分片的场景，如根据产品编号的前缀分片、根据用户地理位置分片等。</p>
+<p>2）业务特征分片：根据业务特征将数据分片。</p>
+<p><code>缺点</code>：枚举值字段值变更需要手动调整规则</p>
+<ul>
+<li><strong>按指定时间格式分片</strong> （sharding-by-month、sharding-by-date、sharding-by-hour）</li>
+</ul>
+<p>根据指定的时间格式进行数据分片</p>
+<p><code>使用场景</code>：</p>
+<p>1）时间分片：适用于需要根据时间字段按指定月、天、小时分片的场景。</p>
+<ul>
+<li><strong>跳跃一致性hash</strong>（Jump Consistent Hashing）</li>
+</ul>
+<p>对分片字段进行哈希计算，得到一个哈希值。利用 Jump Consistent Hashing 算法确定哈希值对应的分片节点。该算法通过哈希值和预定义的分片数，计算出数据应存储的节点。</p>
+<p><code>使用场景</code>：</p>
+<p>1）分布式缓存：适用于分布式缓存系统，如分布式 Redis 集群，保证数据均匀分布和高可用性。</p>
+<p>2）大规模数据分片：适用于大规模数据存储，保证数据均匀分布和系统扩展性。</p>
+<p>3）负载均衡：适用于需要动态增加或减少分片节点的系统，保证负载均衡和数据迁移最小化。</p>
+<ul>
+<li><strong>crc32slot分片算法</strong></li>
+</ul>
+<p>对分片字段（如 <code>id</code>）进行 CRC32 哈希计算，得到一个哈希值。将哈希值对分片数量（如 2）取模，得到一个分片索引。根据分片索引将数据路由到相应的分片节点。</p>
+<p><code>使用场景</code>：</p>
+<p>1）id数据分片：适用于根据ID进行哈希分片，保证数据均匀分布。</p>
+<p>3）大规模数据：适用于需要将大规模数据均匀分布到多个分片节点的场景。</p>
+<ul>
+<li><strong>字段子串分片</strong>（sharding-by-substring）</li>
+</ul>
+<p>根据字段的子串值将数据分配到不同的分片节点上。</p>
+<p><code>使用场景</code>：</p>
+<p>1）手机号码分片：根据手机号码的前缀进行分片，例如按照地区区号分片。</p>
+<p>2）地区编码分片：根据地区编码的前缀进行分片，例如按照省份代码分片</p>
+<h3 id="224">2.2.4 全局自增主键<a class="headerlink" href="#224" title="本节链接">#</a></h3>
+<p>分片键：主键</p>
+<p>分片规则：范围取模分片</p>
+<p><strong>准备环境</strong></p>
+<table>
+<thead>
+<tr>
+<th>主机端口</th>
+<th>服务名</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>localhost:32001</td>
+<td>数据节点</td>
+</tr>
+<tr>
+<td>localhost:32002</td>
+<td>数据节点</td>
+</tr>
+<tr>
+<td>localhost:32003</td>
+<td>mycat元数据</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意事项：</strong></p>
+<p>1）查询逻辑表、逻辑库需要事先在schema.xml中配置</p>
+<p>2）创建逻辑表需要事先在schema.xml中定义否则报错<!--op table not in schema--></p>
+<p>实现方式：在<code>schema.xml</code>中为table设置<code>dataNode</code>和<code>rule</code>，修改<code>rule.xml</code></p>
+<p><strong>实现方式</strong></p>
+<p>1）本地文件存储：mycat重启，sequence会恢复到初始值造成序列重复</p>
+<p>2）数据库存储：单点故障</p>
+<p>3）时间 ： bigint(最大取值18446744073709551615)数据类型过长</p>
+<p>4）zookeeper</p>
+<p>以下采用数据库存储</p>
+<p><strong>修改配置</strong></p>
+<p>schema.xml 配置</p>
+<div class="highlight"><pre><span></span><code><span class="nt">&lt;mycat:schema</span><span class="w"> </span><span class="na">xmlns:mycat=</span><span class="s">"http://io.mycat/"</span><span class="nt">&gt;</span>
+
+<span class="w">        </span><span class="cm">&lt;!-- 定义mycat中的逻辑库 --&gt;</span>
+<span class="w">        </span><span class="nt">&lt;schema</span><span class="w"> </span><span class="na">name=</span><span class="s">"TESTDB"</span><span class="w"> </span><span class="na">checkSQLschema=</span><span class="s">"true"</span><span class="w"> </span><span class="na">sqlMaxLimit=</span><span class="s">"100"</span><span class="w"> </span><span class="nt">&gt;</span>
+<span class="w">          </span><span class="cm">&lt;!-- 定义mycat中的逻辑表 --&gt;</span>
+<span class="w">          </span><span class="nt">&lt;table</span><span class="w"> </span><span class="na">name=</span><span class="s">"tmp_demo"</span><span class="w"> </span><span class="na">dataNode=</span><span class="s">"dn1,dn2"</span><span class="w"> </span><span class="na">primaryKey=</span><span class="s">"id"</span><span class="w"> </span><span class="na">autoIncrement=</span><span class="s">"true"</span><span class="w"> </span><span class="na">rule=</span><span class="s">"auto-sharding-rang-mod"</span><span class="nt">/&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/schema&gt;</span>
+<span class="w">        </span><span class="nt">&lt;schema</span><span class="w"> </span><span class="na">name=</span><span class="s">"MYCAT"</span><span class="w"> </span><span class="na">checkSQLschema=</span><span class="s">"true"</span><span class="w"> </span><span class="na">sqlMaxLimit=</span><span class="s">"100"</span><span class="w"> </span><span class="nt">&gt;</span>
+<span class="w">          </span><span class="cm">&lt;!-- 定义mycat中的逻辑表 --&gt;</span>
+<span class="w">              </span><span class="nt">&lt;table</span><span class="w"> </span><span class="na">name=</span><span class="s">"MYCAT_SEQUENCE"</span><span class="w"> </span><span class="na">dataNode=</span><span class="s">"dn3"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/schema&gt;</span>
+
+<span class="w">        </span><span class="cm">&lt;!--定义数据节点，数据节点指向的是存储逻辑表的物理数据库--&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataNode</span><span class="w"> </span><span class="na">name=</span><span class="s">"dn1"</span><span class="w"> </span><span class="na">dataHost=</span><span class="s">"localhost0"</span><span class="w"> </span><span class="na">database=</span><span class="s">"ceshi"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataNode</span><span class="w"> </span><span class="na">name=</span><span class="s">"dn2"</span><span class="w"> </span><span class="na">dataHost=</span><span class="s">"localhost1"</span><span class="w"> </span><span class="na">database=</span><span class="s">"ceshi"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataNode</span><span class="w"> </span><span class="na">name=</span><span class="s">"dn3"</span><span class="w"> </span><span class="na">dataHost=</span><span class="s">"localhost2"</span><span class="w"> </span><span class="na">database=</span><span class="s">"mycat"</span><span class="w"> </span><span class="nt">/&gt;</span>
+
+<span class="w">        </span><span class="cm">&lt;!--定义后端物理数据库主机信息--&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataHost</span><span class="w"> </span><span class="na">name=</span><span class="s">"localhost0"</span><span class="w"> </span><span class="na">maxCon=</span><span class="s">"1000"</span><span class="w"> </span><span class="na">minCon=</span><span class="s">"10"</span><span class="w"> </span><span class="na">balance=</span><span class="s">"0"</span>
+<span class="w">                  </span><span class="na">writeType=</span><span class="s">"0"</span><span class="w"> </span><span class="na">dbType=</span><span class="s">"mysql"</span><span class="w"> </span><span class="na">dbDriver=</span><span class="s">"jdbc"</span><span class="w"> </span><span class="na">switchType=</span><span class="s">"1"</span><span class="w"> </span><span class="na">slaveThreshold=</span><span class="s">"100"</span><span class="nt">&gt;</span>
+<span class="w">                </span><span class="nt">&lt;heartbeat&gt;</span>select<span class="w"> </span>user()<span class="nt">&lt;/heartbeat&gt;</span>
+<span class="w">                </span><span class="nt">&lt;writeHost</span><span class="w"> </span><span class="na">host=</span><span class="s">"M1"</span><span class="w"> </span><span class="na">url=</span><span class="s">"jdbc:mysql://localhost:32001"</span><span class="w"> </span><span class="na">user=</span><span class="s">"root"</span><span class="w"> </span><span class="na">password=</span><span class="s">"&lt;PASSWORD&gt;"</span><span class="nt">&gt;&lt;/writeHost&gt;</span><span class="w">               </span>
+<span class="w">        </span><span class="nt">&lt;/dataHost&gt;</span>
+
+<span class="w">       </span><span class="nt">&lt;dataHost</span><span class="w"> </span><span class="na">name=</span><span class="s">"localhost1"</span><span class="w"> </span><span class="na">maxCon=</span><span class="s">"1000"</span><span class="w"> </span><span class="na">minCon=</span><span class="s">"10"</span><span class="w"> </span><span class="na">balance=</span><span class="s">"0"</span>
+<span class="w">                  </span><span class="na">writeType=</span><span class="s">"0"</span><span class="w"> </span><span class="na">dbType=</span><span class="s">"mysql"</span><span class="w"> </span><span class="na">dbDriver=</span><span class="s">"jdbc"</span><span class="w"> </span><span class="na">switchType=</span><span class="s">"1"</span><span class="w"> </span><span class="na">slaveThreshold=</span><span class="s">"100"</span><span class="nt">&gt;</span>
+<span class="w">                </span><span class="nt">&lt;heartbeat&gt;</span>select<span class="w"> </span>user()<span class="nt">&lt;/heartbeat&gt;</span>
+<span class="w">                </span><span class="nt">&lt;writeHost</span><span class="w"> </span><span class="na">host=</span><span class="s">"M2"</span><span class="w"> </span><span class="na">url=</span><span class="s">"jdbc:mysql://localhost:32002"</span><span class="w"> </span><span class="na">user=</span><span class="s">"root"</span><span class="w"> </span><span class="na">password=</span><span class="s">"&lt;PASSWORD&gt;"</span><span class="nt">&gt;&lt;/writeHost&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/dataHost&gt;</span>
+
+<span class="w">       </span><span class="nt">&lt;dataHost</span><span class="w"> </span><span class="na">name=</span><span class="s">"localhost2"</span><span class="w"> </span><span class="na">maxCon=</span><span class="s">"1000"</span><span class="w"> </span><span class="na">minCon=</span><span class="s">"10"</span><span class="w"> </span><span class="na">balance=</span><span class="s">"0"</span>
+<span class="w">                  </span><span class="na">writeType=</span><span class="s">"0"</span><span class="w"> </span><span class="na">dbType=</span><span class="s">"mysql"</span><span class="w"> </span><span class="na">dbDriver=</span><span class="s">"jdbc"</span><span class="w"> </span><span class="na">switchType=</span><span class="s">"1"</span><span class="w"> </span><span class="na">slaveThreshold=</span><span class="s">"100"</span><span class="nt">&gt;</span>
+<span class="w">                </span><span class="nt">&lt;heartbeat&gt;</span>select<span class="w"> </span>user()<span class="nt">&lt;/heartbeat&gt;</span>
+<span class="w">                </span><span class="nt">&lt;writeHost</span><span class="w"> </span><span class="na">host=</span><span class="s">"M3"</span><span class="w"> </span><span class="na">url=</span><span class="s">"jdbc:mysql://localhost:32003"</span><span class="w"> </span><span class="na">user=</span><span class="s">"root"</span><span class="w"> </span><span class="na">password=</span><span class="s">"&lt;PASSWORD&gt;"</span><span class="nt">&gt;&lt;/writeHost&gt;</span>
+
+<span class="w">        </span><span class="nt">&lt;/dataHost&gt;</span>
+<span class="nt">&lt;/mycat:schema&gt;</span>
+</code></pre></div>
+
+<p>server.xml配置</p>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"sequenceHandlerType"</span><span class="nt">&gt;</span>1<span class="nt">&lt;/property&gt;</span>
+<span class="w">    </span><span class="nt">&lt;user</span><span class="w"> </span><span class="na">name=</span><span class="s">"root"</span><span class="nt">&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"password"</span><span class="nt">&gt;&lt;PASSWORD&gt;&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"schemas"</span><span class="nt">&gt;</span>TESTDB,MYCAT<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"defaultSchema"</span><span class="nt">&gt;</span>TESTDB<span class="nt">&lt;/property&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/user&gt;</span>
+
+<span class="w">    </span><span class="nt">&lt;user</span><span class="w"> </span><span class="na">name=</span><span class="s">"mycat"</span><span class="nt">&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"password"</span><span class="nt">&gt;&lt;PASSWORD&gt;&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"schemas"</span><span class="nt">&gt;</span>TESTDB,MYCAT<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"readOnly"</span><span class="nt">&gt;</span>true<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"defaultSchema"</span><span class="nt">&gt;</span>TESTDB<span class="nt">&lt;/property&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/user&gt;</span>
+</code></pre></div>
+
+<p>sequence_db_conf.properties 配置</p>
+<div class="highlight"><pre><span></span><code><span class="nv">TMP_SCY</span><span class="o">=</span>dn3
+</code></pre></div>
+
+<p>partition-range-mod.txt 配置</p>
+<div class="highlight"><pre><span></span><code><span class="na">0-200M</span><span class="o">=</span><span class="s">1</span>
+<span class="na">200M1-400M</span><span class="o">=</span><span class="s">1</span>
+<span class="c1">#等号前面的范围代表一个分片组 , 等号后面的数字代表该分片组所拥有的分片数量</span>
+</code></pre></div>
+
+<p>全局序列的配置（mycat数据库中设置，物理数据库）</p>
+<div class="highlight"><pre><span></span><code><span class="k">DROP</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">MYCAT_SEQUENCE</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">MYCAT_SEQUENCE</span><span class="w"> </span><span class="p">(</span>
+<span class="n">NAME</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="w"> </span><span class="p">(</span><span class="mi">50</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="n">current_value</span><span class="w"> </span><span class="nb">INT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="k">increment</span><span class="w"> </span><span class="nb">INT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
+<span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">NAME</span><span class="p">)</span>
+<span class="p">)</span><span class="w"> </span><span class="n">ENGINE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INNODB</span><span class="w"> </span><span class="p">;</span>
+
+<span class="c1">-- 插入表数据</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">MYCAT_SEQUENCE</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span><span class="n">current_value</span><span class="p">,</span><span class="k">increment</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'TMP_SCY'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+
+<span class="c1">-- 创建函数</span>
+<span class="k">DELIMITER</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">mycat_seq_currval</span><span class="p">(</span><span class="n">seq_name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">))</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+<span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="k">DECLARE</span><span class="w"> </span><span class="n">retval</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">retval</span><span class="o">=</span><span class="s1">'-999999999,null'</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">CONCAT</span><span class="p">(</span><span class="k">CAST</span><span class="p">(</span><span class="n">current_value</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="nb">CHAR</span><span class="p">),</span><span class="s1">','</span><span class="p">,</span><span class="k">CAST</span><span class="p">(</span><span class="k">increment</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="nb">CHAR</span><span class="p">))</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">retval</span><span class="w"> </span><span class="k">FROM</span>
+<span class="n">MYCAT_SEQUENCE</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">NAME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seq_name</span><span class="p">;</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">retval</span><span class="p">;</span>
+<span class="k">END</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">DELIMITER</span><span class="w"> </span><span class="p">;</span>
+
+<span class="k">DELIMITER</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">mycat_seq_setval</span><span class="p">(</span><span class="n">seq_name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span><span class="n">VALUE</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">)</span><span class="w"> </span><span class="k">RETURNS</span>
+<span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+<span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">MYCAT_SEQUENCE</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">current_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VALUE</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">NAME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seq_name</span><span class="p">;</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">mycat_seq_currval</span><span class="p">(</span><span class="n">seq_name</span><span class="p">);</span>
+<span class="k">END</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">DELIMITER</span><span class="w"> </span><span class="p">;</span>
+
+<span class="k">DELIMITER</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">mycat_seq_nextval</span><span class="p">(</span><span class="n">seq_name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">))</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+<span class="k">DETERMINISTIC</span>
+<span class="k">BEGIN</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">MYCAT_SEQUENCE</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">current_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_value</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">increment</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">NAME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seq_name</span><span class="p">;</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">mycat_seq_currval</span><span class="p">(</span><span class="n">seq_name</span><span class="p">);</span>
+<span class="k">END</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">DELIMITER</span><span class="w"> </span><span class="p">;</span>
+</code></pre></div>
+
+<p>测试</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 创建表</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">tmp_demo</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="n">AUTO_INCREMENT</span><span class="p">,</span>
+<span class="w">  </span><span class="n">col1</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">  </span><span class="n">col2</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">  </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span>
+<span class="p">)</span><span class="err">；</span>
+<span class="c1">-- 插入数据</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">testdb</span><span class="p">.</span><span class="n">tmp_demo</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span><span class="n">col2</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'test'</span><span class="p">,</span><span class="mi">1</span><span class="p">);</span>
+</code></pre></div>
+
+<h3 id="225-uuid">2.2.5 uuid主键<a class="headerlink" href="#225-uuid" title="本节链接">#</a></h3>
+<p>分片键：主键</p>
+<p>分片规则：跳跃一致性hash</p>
+<p><strong>准备环境</strong></p>
+<p>同自增主键环境一致</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/mycat/%E6%9E%B6%E6%9E%84/%E5%88%86%E5%BA%93%E5%88%86%E8%A1%A8.md">Miss001/data-engineering-notes · database/mycat/架构/分库分表.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/postgresql-jia-gou-suo-cha-xun-chu-li/"><small>上一篇</small>PostgreSQL 架构：锁查询处理</a><a class="glass next" href="/posts/cdh6-3-0-bu-shu-can-kao-lian-jie/"><small>下一篇</small>CDH：参考链接</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">分库分表</a><ul><li><a href="#221">2.2.1 应用场景</a></li><li><a href="#222">2.2.2 表类型</a></li><li><a href="#223">2.2.3 分片规则</a></li><li><a href="#224">2.2.4 全局自增主键</a></li><li><a href="#225-uuid">2.2.5 uuid主键</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@
   <link href="https://miss001.github.io/"/>
   <link rel="self" href="https://miss001.github.io/feed.xml"/>
   <id>https://miss001.github.io/</id>
-  <updated>2026-10-09T08:40:23Z</updated>
+  <updated>2026-10-09T08:48:52Z</updated>
   <author><name>宇宙超级无敌美少女</name></author>
   <entry>
     <title>Conda 环境离线安装与迁移：conda-pack 打包到内网服务器</title>
@@ -14,6 +14,14 @@
     <updated>2026-10-09T00:00:00+08:00</updated>
     <category term="数据工程"/>
     <summary>内网服务器装不了包？在有网的机器上建好 conda 环境，用 conda-pack 打成压缩包拷过去解压即用；也可以只下载离线包，用 --offline / --no-index 安装。</summary>
+  </entry>
+  <entry>
+    <title>MySQL 架构：事物与锁</title>
+    <link href="https://miss001.github.io/posts/mysql-jia-gou-shi-wu-yu-suo/"/>
+    <id>https://miss001.github.io/posts/mysql-jia-gou-shi-wu-yu-suo/</id>
+    <updated>2026-10-08T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：事务、索引、锁、元数据锁（DML）、表锁、意向共享锁（IS）&amp;意向排它锁（IX）等。</summary>
   </entry>
   <entry>
     <title>CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify</title>
@@ -32,11 +40,211 @@
     <summary>离线环境无法 ollama pull，可以从 Hugging Face 下载 GGUF 文件，写一个 Modelfile（模型路径 + 对话模板 + 停止词），再用 ollama create 导入并通过 API 测试。</summary>
   </entry>
   <entry>
+    <title>PostgreSQL 架构：基本语法2</title>
+    <link href="https://miss001.github.io/posts/postgresql-jia-gou-ji-ben-yu-fa-2/"/>
+    <id>https://miss001.github.io/posts/postgresql-jia-gou-ji-ben-yu-fa-2/</id>
+    <updated>2026-10-06T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：主键设置、匿名块创建、自定义函数创建、存储过程创建、视图创建、分区表创建等。</summary>
+  </entry>
+  <entry>
     <title>Ollama 离线安装：systemd 服务与 Docker 两种方式</title>
     <link href="https://miss001.github.io/posts/ollama-offline-install/"/>
     <id>https://miss001.github.io/posts/ollama-offline-install/</id>
     <updated>2026-10-06T00:00:00+08:00</updated>
     <category term="Agent 开发"/>
     <summary>在无法直连外网的 Linux 服务器上安装 Ollama：改写官方 install.sh 走本地安装包、配置 systemd 开机自启，或者直接用 Docker 一条命令跑起来。</summary>
+  </entry>
+  <entry>
+    <title>GaussDB 基本语法：DWS数仓</title>
+    <link href="https://miss001.github.io/posts/gaussdb-ji-ben-yu-fa-dws-shu-cang/"/>
+    <id>https://miss001.github.io/posts/gaussdb-ji-ben-yu-fa-dws-shu-cang/</id>
+    <updated>2026-10-05T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：创建外表、创建普通表。</summary>
+  </entry>
+  <entry>
+    <title>PostgreSQL 部署：扩展安装</title>
+    <link href="https://miss001.github.io/posts/postgresql-bu-shu-extension-deploy/"/>
+    <id>https://miss001.github.io/posts/postgresql-bu-shu-extension-deploy/</id>
+    <updated>2026-10-03T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：内置扩展包安装、orafce 兼容扩展包安装、postgis 扩展包安装。</summary>
+  </entry>
+  <entry>
+    <title>openGauss 部署：扩展安装</title>
+    <link href="https://miss001.github.io/posts/opengauss-bu-shu-deploy-extension/"/>
+    <id>https://miss001.github.io/posts/opengauss-bu-shu-deploy-extension/</id>
+    <updated>2026-10-02T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：安装uuid-ssop：不兼容。</summary>
+  </entry>
+  <entry>
+    <title>Kylin 4 安装文档</title>
+    <link href="https://miss001.github.io/posts/kylin-sheng-ji-kylin4-an-zhuang-wen-dang/"/>
+    <id>https://miss001.github.io/posts/kylin-sheng-ji-kylin4-an-zhuang-wen-dang/</id>
+    <updated>2026-09-30T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：升级kylin4。</summary>
+  </entry>
+  <entry>
+    <title>OceanBase 部署：OMS 社区版部署</title>
+    <link href="https://miss001.github.io/posts/oceanbase-bu-shu-deploy-single-oms-ce/"/>
+    <id>https://miss001.github.io/posts/oceanbase-bu-shu-deploy-single-oms-ce/</id>
+    <updated>2026-09-28T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：oms安装、下载、加载镜像、oms配置文件、部署、初始化oms。</summary>
+  </entry>
+  <entry>
+    <title>Elasticsearch Logstash：Elasticsearch 同步到 MySQL</title>
+    <link href="https://miss001.github.io/posts/elasticsearch-logstash-es2mysql/"/>
+    <id>https://miss001.github.io/posts/elasticsearch-logstash-es2mysql/</id>
+    <updated>2026-09-27T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：创建目录、配置logstash.conf、启动。</summary>
+  </entry>
+  <entry>
+    <title>GaussDB：参考链接</title>
+    <link href="https://miss001.github.io/posts/gaussdb-can-kao-lian-jie/"/>
+    <id>https://miss001.github.io/posts/gaussdb-can-kao-lian-jie/</id>
+    <updated>2026-09-25T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：for opengauss、dws。</summary>
+  </entry>
+  <entry>
+    <title>Linux：磁盘挂载</title>
+    <link href="https://miss001.github.io/posts/linux-ci-pan-gua-zai/"/>
+    <id>https://miss001.github.io/posts/linux-ci-pan-gua-zai/</id>
+    <updated>2026-09-24T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：mount_disk.sh、mount_disk_series.sh。</summary>
+  </entry>
+  <entry>
+    <title>MySQL 常见问题：驱动版本问题</title>
+    <link href="https://miss001.github.io/posts/mysql-chang-jian-wen-ti-qu-dong-ban-ben-wen-ti/"/>
+    <id>https://miss001.github.io/posts/mysql-chang-jian-wen-ti-qu-dong-ban-ben-wen-ti/</id>
+    <updated>2026-09-22T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：驱动版本不一致。</summary>
+  </entry>
+  <entry>
+    <title>MyCat 架构：读写分离</title>
+    <link href="https://miss001.github.io/posts/mycat-jia-gou-du-xie-fen-li/"/>
+    <id>https://miss001.github.io/posts/mycat-jia-gou-du-xie-fen-li/</id>
+    <updated>2026-09-20T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：（一主一从）、（双主双从）。</summary>
+  </entry>
+  <entry>
+    <title>Linux：vmware修改网卡类型</title>
+    <link href="https://miss001.github.io/posts/linux-vmware-xiu-gai-wang-ka-lei-xing/"/>
+    <id>https://miss001.github.io/posts/linux-vmware-xiu-gai-wang-ka-lei-xing/</id>
+    <updated>2026-09-19T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：关闭虚拟机、编辑 .vmx 文件、重启虚拟机、查看网卡名称是否变更、修改网卡配置。</summary>
+  </entry>
+  <entry>
+    <title>PostgreSQL 迁移转换：mysql至postgresql</title>
+    <link href="https://miss001.github.io/posts/postgresql-qian-yi-zhuan-huan-mysql-zhi-postgresql/"/>
+    <id>https://miss001.github.io/posts/postgresql-qian-yi-zhuan-huan-mysql-zhi-postgresql/</id>
+    <updated>2026-09-17T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：语法差异转换。</summary>
+  </entry>
+  <entry>
+    <title>PostgreSQL 架构：导入导出</title>
+    <link href="https://miss001.github.io/posts/postgresql-jia-gou-dao-ru-dao-chu/"/>
+    <id>https://miss001.github.io/posts/postgresql-jia-gou-dao-ru-dao-chu/</id>
+    <updated>2026-09-15T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：将txt/csv文件导入远程数据表中、将远程数据表导出到text/csv文件中。</summary>
+  </entry>
+  <entry>
+    <title>GaussDB 知识结构：体系架构-集中式</title>
+    <link href="https://miss001.github.io/posts/gaussdb-zhi-shi-jie-gou-ti-xi-jia-gou-ji-zhong-shi/"/>
+    <id>https://miss001.github.io/posts/gaussdb-zhi-shi-jie-gou-ti-xi-jia-gou-ji-zhong-shi/</id>
+    <updated>2026-09-14T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：基本架构、逻辑结构、物理架构。</summary>
+  </entry>
+  <entry>
+    <title>Elasticsearch 部署：docker部署</title>
+    <link href="https://miss001.github.io/posts/elasticsearch-bu-shu-docker-bu-shu/"/>
+    <id>https://miss001.github.io/posts/elasticsearch-bu-shu-docker-bu-shu/</id>
+    <updated>2026-09-12T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：elasticsearch、kibana、logstash。</summary>
+  </entry>
+  <entry>
+    <title>PostgreSQL 迁移转换：oracle至postgresql</title>
+    <link href="https://miss001.github.io/posts/postgresql-qian-yi-zhuan-huan-oracle-zhi-postgresql/"/>
+    <id>https://miss001.github.io/posts/postgresql-qian-yi-zhuan-huan-oracle-zhi-postgresql/</id>
+    <updated>2026-09-11T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：ctid vs rowid、语法差异转换。</summary>
+  </entry>
+  <entry>
+    <title>MySQL 架构：锁查询</title>
+    <link href="https://miss001.github.io/posts/mysql-jia-gou-suo-cha-xun/"/>
+    <id>https://miss001.github.io/posts/mysql-jia-gou-suo-cha-xun/</id>
+    <updated>2026-09-09T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：锁查询。</summary>
+  </entry>
+  <entry>
+    <title>PostgreSQL 部署：RPM 单机部署</title>
+    <link href="https://miss001.github.io/posts/postgresql-bu-shu-single-deploy-rpm/"/>
+    <id>https://miss001.github.io/posts/postgresql-bu-shu-single-deploy-rpm/</id>
+    <updated>2026-09-07T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：下载安装包、下载依赖包、安装、配置文件修改、创建用户。</summary>
+  </entry>
+  <entry>
+    <title>OceanBase：工具</title>
+    <link href="https://miss001.github.io/posts/oceanbase-gong-ju/"/>
+    <id>https://miss001.github.io/posts/oceanbase-gong-ju/</id>
+    <updated>2026-09-06T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：社区版、OBD、OCP、OBclient。</summary>
+  </entry>
+  <entry>
+    <title>PostgreSQL 架构：原理</title>
+    <link href="https://miss001.github.io/posts/postgresql-jia-gou-yuan-li/"/>
+    <id>https://miss001.github.io/posts/postgresql-jia-gou-yuan-li/</id>
+    <updated>2026-09-04T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：基本架构、逻辑结构、物理结构、存储结构、事务、子事务（保存点）等。</summary>
+  </entry>
+  <entry>
+    <title>OceanBase 部署：单节点部署</title>
+    <link href="https://miss001.github.io/posts/oceanbase-bu-shu-deploy-single/"/>
+    <id>https://miss001.github.io/posts/oceanbase-bu-shu-deploy-single/</id>
+    <updated>2026-09-03T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：企业版、机器配置、环境准备、安装OAT、安装oceanbase、安装客户端。</summary>
+  </entry>
+  <entry>
+    <title>OceanBase 管理：租户管理</title>
+    <link href="https://miss001.github.io/posts/oceanbase-guan-li-zu-hu-guan-li/"/>
+    <id>https://miss001.github.io/posts/oceanbase-guan-li-zu-hu-guan-li/</id>
+    <updated>2026-09-01T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：创建租户使用。</summary>
+  </entry>
+  <entry>
+    <title>Linux：vmware磁盘扩容</title>
+    <link href="https://miss001.github.io/posts/linux-vmware-ci-pan-kuo-rong/"/>
+    <id>https://miss001.github.io/posts/linux-vmware-ci-pan-kuo-rong/</id>
+    <updated>2026-08-30T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：磁盘扩展方式、虚拟机扩展磁盘、分区扩容、更新内核分区信息、扩展物理卷、扩展逻辑卷等。</summary>
+  </entry>
+  <entry>
+    <title>openGauss：日志查询</title>
+    <link href="https://miss001.github.io/posts/opengauss-ri-zhi-cha-xun/"/>
+    <id>https://miss001.github.io/posts/opengauss-ri-zhi-cha-xun/</id>
+    <updated>2026-08-29T00:00:00+08:00</updated>
+    <category term="数据工程"/>
+    <summary>要点：节点日志。</summary>
   </entry>
 </feed>

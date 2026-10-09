@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle 部署：Docker 单机部署 · Miss001</title>
+<meta name="description" content="要点：安装 Docker 20.x、安装oracle。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Oracle 部署：Docker 单机部署 · Miss001">
+<meta property="og:description" content="要点：安装 Docker 20.x、安装oracle。">
+<meta property="og:url" content="https://miss001.github.io/posts/oracle-bu-shu-single-deploy-docker/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/oracle-bu-shu-single-deploy-docker/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 7 月 15 日</span><span>·</span><span>1 分钟阅读</span></div>
+    <h1>Oracle 部署：Docker 单机部署</h1>
+    <p class="post-summary">要点：安装 Docker 20.x、安装oracle。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/oracle/">Oracle</a></span></div>
+  </header>
+  <div class="glass prose">
+<p>https://developer.aliyun.com/article/1025085</p>
+<h2 id="docker-20x">安装 Docker 20.x<a class="headerlink" href="#docker-20x" title="本节链接">#</a></h2>
+<p>安装依赖</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>yum-utils
+sudo<span class="w"> </span>yum-config-manager<span class="w"> </span>--add-repo<span class="w"> </span>https://download.docker.com/linux/centos/docker-ce.repo
+</code></pre></div>
+
+<p>安装docker</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>docker-ce-20.10.0<span class="w"> </span>docker-ce-cli-20.10.0<span class="w"> </span>containerd.io
+</code></pre></div>
+
+<p>启动dockers</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>docker
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>docker
+</code></pre></div>
+
+<h2 id="oracle">安装oracle<a class="headerlink" href="#oracle" title="本节链接">#</a></h2>
+<p>拉取镜像</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>pull<span class="w"> </span>registry.cn-hangzhou.aliyuncs.com/helowin/oracle_11g
+</code></pre></div>
+
+<p>创建数据目录</p>
+<div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>/opt/oracle
+</code></pre></div>
+
+<p>创建容器</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
+-p<span class="w"> </span><span class="m">1521</span>:1521<span class="w"> </span><span class="se">\</span>
+--name<span class="w"> </span>oracle<span class="w"> </span><span class="se">\</span>
+-v<span class="w"> </span>/opt/oracle:/data/oracle<span class="w"> </span><span class="se">\</span>
+registry.cn-hangzhou.aliyuncs.com/helowin/oracle_11g
+</code></pre></div>
+
+<p>进入容器</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>oracle<span class="w"> </span>bash
+</code></pre></div>
+
+<p>切换root用户,密码为 helowin </p>
+<div class="highlight"><pre><span></span><code>su
+</code></pre></div>
+
+<p>添加环境变量</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">ORACLE_HOME</span><span class="o">=</span>/home/oracle/app/oracle/product/11.2.0/dbhome_2
+<span class="nb">export</span><span class="w"> </span><span class="nv">ORACLE_SID</span><span class="o">=</span>helowin
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$ORACLEHOME</span>/bin:PATH
+
+<span class="nb">source</span><span class="w"> </span>/etc/profile<span class="w"> </span>
+</code></pre></div>
+
+<p>添加软连接</p>
+<div class="highlight"><pre><span></span><code>ln<span class="w"> </span>-s<span class="w"> </span><span class="nv">$ORACLE_HOME</span>/bin/sqlplus<span class="w"> </span>/usr/bin
+</code></pre></div>
+
+<p>切换到oracle用户</p>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>-<span class="w"> </span>oracle
+</code></pre></div>
+
+<p>登录</p>
+<div class="highlight"><pre><span></span><code>sqlplus<span class="w"> </span>/nolog<span class="w"> </span>
+conn<span class="w"> </span>/as<span class="w"> </span>sysdba
+</code></pre></div>
+
+<p>修改sys、system用户密码</p>
+<div class="highlight"><pre><span></span><code><span class="k">alter</span><span class="w"> </span><span class="k">user</span><span class="w"> </span><span class="k">system</span><span class="w"> </span><span class="n">identified</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">&lt;</span><span class="n">PASSWORD</span><span class="o">&gt;</span><span class="w"> </span><span class="p">;</span>
+<span class="k">alter</span><span class="w"> </span><span class="k">user</span><span class="w"> </span><span class="n">sys</span><span class="w"> </span><span class="n">identified</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">&lt;</span><span class="n">PASSWORD</span><span class="o">&gt;</span><span class="w"> </span><span class="p">;</span>
+</code></pre></div>
+
+<p>添加用户</p>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="k">user</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="n">identified</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">&lt;</span><span class="n">PASSWORD</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="o">#</span><span class="err">授权</span>
+<span class="k">grant</span><span class="w"> </span><span class="k">connect</span><span class="p">,</span><span class="n">resource</span><span class="p">,</span><span class="n">dba</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">root</span><span class="p">;</span>
+<span class="o">#</span><span class="err">设置密码永不过期</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="n">PROFILE</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="n">PASSWORD_LIFE_TIME</span><span class="w"> </span><span class="n">UNLIMITED</span><span class="p">;</span>
+<span class="o">#</span><span class="err">修改数据库最大连接数</span>
+<span class="k">alter</span><span class="w"> </span><span class="k">system</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">processes</span><span class="o">=</span><span class="mi">1000</span><span class="w"> </span><span class="k">scope</span><span class="o">=</span><span class="n">spfile</span><span class="p">;</span>
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/oracle/%E9%83%A8%E7%BD%B2/single-deploy-docker.md">Miss001/data-engineering-notes · database/oracle/部署/single-deploy-docker.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/postgresql-jia-gou-tong-ji-xin-xi-cha-xun/"><small>上一篇</small>PostgreSQL 架构：统计信息查询</a><a class="glass next" href="/posts/postgresql-bu-shu-ora2pg-deploy/"><small>下一篇</small>PostgreSQL 部署：ora2pg 安装</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#docker-20x">安装 Docker 20.x</a></li><li><a href="#oracle">安装oracle</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyCat 部署：安装文档 · Miss001</title>
+<meta name="description" content="1）下载 下载地址：https://github.com/MyCATApache/Mycat Server/releases 2）安装 3）配置 引用链接：[Mycat 核心配置详…">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MyCat 部署：安装文档 · Miss001">
+<meta property="og:description" content="1）下载 下载地址：https://github.com/MyCATApache/Mycat Server/releases 2）安装 3）配置 引用链接：[Mycat 核心配置详…">
+<meta property="og:url" content="https://miss001.github.io/posts/mycat-bu-shu-an-zhuang-wen-dang/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mycat-bu-shu-an-zhuang-wen-dang/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 6 月 30 日</span><span>·</span><span>3 分钟阅读</span></div>
+    <h1>MyCat 部署：安装文档</h1>
+    <p class="post-summary">1）下载 下载地址：https://github.com/MyCATApache/Mycat Server/releases 2）安装 3）配置 引用链接：[Mycat 核心配置详…</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mycat/">MyCat</a></span></div>
+  </header>
+  <div class="glass prose">
+<p>1）下载</p>
+<p>下载地址：https://github.com/MyCATApache/Mycat-Server/releases</p>
+<p>2）安装</p>
+<div class="highlight"><pre><span></span><code><span class="c1">#解压</span>
+tar<span class="w"> </span>-xvf<span class="w"> </span>Mycat-server-1.6.7.5-release-20200422133810-linux.tar.gz
+
+<span class="c1">#添加用户</span>
+adduser<span class="w"> </span>mycat
+chown<span class="w"> </span>mycat:mycat<span class="w"> </span>mycat/
+
+<span class="c1">#配置环境变量</span>
+vi<span class="w"> </span>/etc/profile
+<span class="nv">MYCAT_HOME</span><span class="o">=</span>/opt/mycat/mycat
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$MYCAT_HOME</span>/bin
+</code></pre></div>
+
+<p>3）配置</p>
+<p>引用链接：<a href="https://cloud.tencent.com/developer/article/1702314">Mycat 核心配置详解-腾讯云开发者社区-腾讯云 (tencent.com)</a></p>
+<p><strong>schema.xml</strong> </p>
+<p>用途：</p>
+<ul>
+<li>配置逻辑库及逻辑表</li>
+<li>配置逻辑表所存储的数据节点</li>
+<li>配置数据节点所对应的物理<a href="https://cloud.tencent.com/product/dbexpert?from_column=20065&amp;from=20065">数据库服务</a>器信息</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="cp">&lt;?xml version="1.0"?&gt;</span>
+<span class="cp">&lt;!DOCTYPE mycat:schema SYSTEM "schema.dtd"&gt;</span>
+<span class="nt">&lt;mycat:schema</span><span class="w"> </span><span class="na">xmlns:mycat=</span><span class="s">"http://io.mycat/"</span><span class="nt">&gt;</span>
+
+<span class="w">        </span><span class="cm">&lt;!-- 定义mycat中的逻辑库 --&gt;</span>
+<span class="w">        </span><span class="nt">&lt;schema</span><span class="w"> </span><span class="na">name=</span><span class="s">"TESTDB"</span><span class="w"> </span><span class="na">checkSQLschema=</span><span class="s">"true"</span><span class="w"> </span><span class="na">sqlMaxLimit=</span><span class="s">"100"</span><span class="w"> </span><span class="na">randomDataNode=</span><span class="s">"dn1"</span><span class="nt">&gt;</span>
+<span class="w">          </span><span class="cm">&lt;!-- 定义mycat中的逻辑表 --&gt;</span>
+<span class="w">          </span><span class="cm">&lt;!-- 多表定义 --&gt;</span>
+<span class="w">          </span><span class="nt">&lt;table</span><span class="w"> </span><span class="na">name=</span><span class="s">"tmp_demo,tmp_demo1"</span><span class="w"> </span><span class="na">dataNode=</span><span class="s">"dn1,dn2"</span><span class="w"> </span><span class="na">rule=</span><span class="s">"auto-sharding-long"</span><span class="w"> </span><span class="na">splitTableNames =</span><span class="s">"true"</span><span class="nt">/&gt;</span>
+<span class="w">          </span><span class="cm">&lt;!-- 单表定义 --&gt;</span>
+<span class="w">          </span><span class="cm">&lt;!-- &lt;table name="oc_call" primaryKey="id" dataNode="dn1$0-743" rule="latest-month-calldate"/&gt; --&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/schema&gt;</span>
+
+
+<span class="w">        </span><span class="cm">&lt;!--定义数据节点，数据节点指向的是存储逻辑表的物理数据库--&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataNode</span><span class="w"> </span><span class="na">name=</span><span class="s">"dn1"</span><span class="w"> </span><span class="na">dataHost=</span><span class="s">"localhost1"</span><span class="w"> </span><span class="na">database=</span><span class="s">"ceshi"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataNode</span><span class="w"> </span><span class="na">name=</span><span class="s">"dn2"</span><span class="w"> </span><span class="na">dataHost=</span><span class="s">"localhost1"</span><span class="w"> </span><span class="na">database=</span><span class="s">"ceshi"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">        </span><span class="cm">&lt;!-- 可以配置一个范围 --&gt;</span>
+<span class="w">        </span><span class="cm">&lt;!-- &lt;dataNode name="dn1$0-743" dataHost="localhost1" database="db$0-743"/&gt; --&gt;</span>
+
+
+<span class="w">        </span><span class="cm">&lt;!--定义后端物理数据库主机信息--&gt;</span>
+<span class="w">        </span><span class="nt">&lt;dataHost</span><span class="w"> </span><span class="na">name=</span><span class="s">"localhost1"</span><span class="w"> </span><span class="na">maxCon=</span><span class="s">"1000"</span><span class="w"> </span><span class="na">minCon=</span><span class="s">"10"</span><span class="w"> </span><span class="na">balance=</span><span class="s">"0"</span>
+<span class="w">                  </span><span class="na">writeType=</span><span class="s">"0"</span><span class="w"> </span><span class="na">dbType=</span><span class="s">"mysql"</span><span class="w"> </span><span class="na">dbDriver=</span><span class="s">"jdbc"</span><span class="w"> </span><span class="na">switchType=</span><span class="s">"1"</span><span class="w"> </span><span class="na">slaveThreshold=</span><span class="s">"100"</span><span class="nt">&gt;</span>
+<span class="w">                </span><span class="nt">&lt;heartbeat&gt;</span>select<span class="w"> </span>user()<span class="nt">&lt;/heartbeat&gt;</span>
+<span class="w">                </span><span class="cm">&lt;!-- 多个实例配置 --&gt;</span>
+<span class="w">                </span><span class="nt">&lt;writeHost</span><span class="w"> </span><span class="na">host=</span><span class="s">"localhost"</span><span class="w"> </span><span class="na">url=</span><span class="s">"jdbc:mysql://localhost:31301"</span><span class="w"> </span><span class="na">user=</span><span class="s">"root"</span><span class="w"> </span><span class="na">password=</span><span class="s">"&lt;PASSWORD&gt;"</span><span class="nt">&gt;</span>
+<span class="w">                   </span><span class="nt">&lt;readHost</span><span class="w"> </span><span class="na">host=</span><span class="s">"localhost"</span><span class="w"> </span><span class="na">url=</span><span class="s">"jdbc:mysql://localhost:31302"</span><span class="w"> </span><span class="na">user=</span><span class="s">"root"</span><span class="w"> </span><span class="na">password=</span><span class="s">"&lt;PASSWORD&gt;"</span><span class="nt">&gt;&lt;/readHost&gt;</span>
+<span class="w">                </span><span class="nt">&lt;/writeHost&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/dataHost&gt;</span>
+<span class="nt">&lt;/mycat:schema&gt;</span>
+</code></pre></div>
+
+<p><strong>rule.xml</strong> </p>
+<ul>
+<li>配置水平分片的分片规则</li>
+<li>配置分片规则所对应的分片函数</li>
+</ul>
+<p>默认文件即可使用</p>
+<p><strong>server.xml</strong> </p>
+<ul>
+<li>配置 Mycat 的系统参数</li>
+</ul>
+<p>修改user部分信息</p>
+<div class="highlight"><pre><span></span><code><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="cm">&lt;!-- - - Licensed under the Apache License, Version 2.0 (the "License"); </span>
+<span class="cm">    - you may not use this file except in compliance with the License. - You </span>
+<span class="cm">    may obtain a copy of the License at - - http://www.apache.org/licenses/LICENSE-2.0 </span>
+<span class="cm">    - - Unless required by applicable law or agreed to in writing, software - </span>
+<span class="cm">    distributed under the License is distributed on an "AS IS" BASIS, - WITHOUT </span>
+<span class="cm">    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. - See the </span>
+<span class="cm">    License for the specific language governing permissions and - limitations </span>
+<span class="cm">    under the License. --&gt;</span>
+<span class="cp">&lt;!DOCTYPE mycat:server SYSTEM "server.dtd"&gt;</span>
+<span class="nt">&lt;mycat:server</span><span class="w"> </span><span class="na">xmlns:mycat=</span><span class="s">"http://io.mycat/"</span><span class="nt">&gt;</span>
+
+<span class="w">    </span><span class="nt">&lt;user</span><span class="w"> </span><span class="na">name=</span><span class="s">"root"</span><span class="w"> </span><span class="na">defaultAccount=</span><span class="s">"true"</span><span class="nt">&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"password"</span><span class="nt">&gt;&lt;PASSWORD&gt;&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"schemas"</span><span class="nt">&gt;</span>TESTDB<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"defaultSchema"</span><span class="nt">&gt;</span>TESTDB<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="cm">&lt;!--No MyCAT Database selected 错误前会尝试使用该schema作为schema，不设置则为null,报错 --&gt;</span>
+
+<span class="w">        </span><span class="cm">&lt;!-- 表级 DML 权限设置 --&gt;</span>
+<span class="w">        </span><span class="cm">&lt;!--        </span>
+<span class="cm">        &lt;privileges check="false"&gt;</span>
+<span class="cm">            &lt;schema name="TESTDB" dml="0110" &gt;</span>
+<span class="cm">                &lt;table name="tb01" dml="0000"&gt;&lt;/table&gt;</span>
+<span class="cm">                &lt;table name="tb02" dml="1111"&gt;&lt;/table&gt;</span>
+<span class="cm">            &lt;/schema&gt;</span>
+<span class="cm">        &lt;/privileges&gt;       </span>
+<span class="cm">         --&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/user&gt;</span>
+
+<span class="w">    </span><span class="nt">&lt;user</span><span class="w"> </span><span class="na">name=</span><span class="s">"mycat"</span><span class="nt">&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"password"</span><span class="nt">&gt;&lt;PASSWORD&gt;&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"schemas"</span><span class="nt">&gt;</span>TESTDB<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"readOnly"</span><span class="nt">&gt;</span>true<span class="nt">&lt;/property&gt;</span>
+<span class="w">        </span><span class="nt">&lt;property</span><span class="w"> </span><span class="na">name=</span><span class="s">"defaultSchema"</span><span class="nt">&gt;</span>TESTDB<span class="nt">&lt;/property&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/user&gt;</span>
+
+<span class="nt">&lt;/mycat:server&gt;</span>
+</code></pre></div>
+
+<p>4）替换lib/mysql-connector-java-5.1.35.jar为8的版本</p>
+<p>5）启动</p>
+<div class="highlight"><pre><span></span><code>mycat<span class="w"> </span>start
+</code></pre></div>
+
+<p>开放端口 </p>
+<div class="highlight"><pre><span></span><code>firewall-cmd<span class="w"> </span>--add-port<span class="o">=</span><span class="m">8066</span>/tcp<span class="w"> </span>--permanent
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/mycat/%E9%83%A8%E7%BD%B2/%E5%AE%89%E8%A3%85%E6%96%87%E6%A1%A3.md">Miss001/data-engineering-notes · database/mycat/部署/安装文档.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/oceanbase-can-kao-lian-jie/"><small>上一篇</small>OceanBase：参考连接</a><a class="glass next" href="/posts/mysql-fu-zhi-pei-zhi-yi-bu-fu-zhi/"><small>下一篇</small>MySQL 复制：配置异步复制</a></nav>
+</article>
+<aside class="toc"></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openGauss 迁移转换：oracle迁移问题记录 · Miss001</title>
+<meta name="description" content="要点：分区表导入语法错误、分区表导入错误、导入表数据表不存在，实际数据库存在表、导入数据字符集错误、遗留问题。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="openGauss 迁移转换：oracle迁移问题记录 · Miss001">
+<meta property="og:description" content="要点：分区表导入语法错误、分区表导入错误、导入表数据表不存在，实际数据库存在表、导入数据字符集错误、遗留问题。">
+<meta property="og:url" content="https://miss001.github.io/posts/opengauss-qian-yi-zhuan-huan-oracle-qian-yi-wen-ti-ji-lu/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/opengauss-qian-yi-zhuan-huan-oracle-qian-yi-wen-ti-ji-lu/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 5 月 31 日</span><span>·</span><span>3 分钟阅读</span></div>
+    <h1>openGauss 迁移转换：oracle迁移问题记录</h1>
+    <p class="post-summary">要点：分区表导入语法错误、分区表导入错误、导入表数据表不存在，实际数据库存在表、导入数据字符集错误、遗留问题。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/opengauss/">openGauss</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="1">1.分区表导入语法错误<a class="headerlink" href="#1" title="本节链接">#</a></h2>
+<ul>
+<li>报错信息</li>
+</ul>
+<div class="highlight"><pre><span></span><code>Running:<span class="w"> </span>gsql<span class="w"> </span>--single-transaction<span class="w">  </span>-h<span class="w"> </span>&lt;HOST_IP&gt;<span class="w"> </span>-p<span class="w"> </span><span class="m">15400</span><span class="w"> </span>-U<span class="w"> </span>root<span class="w"> </span>-W<span class="w"> </span>&lt;PASSWORD&gt;<span class="w"> </span>-d<span class="w"> </span>oraclemode_db<span class="w"> </span>-f<span class="w"> </span>./schema/tables/table.sql
+SET
+SET
+CREATE<span class="w"> </span>TABLE
+CREATE<span class="w"> </span>TABLE
+CREATE<span class="w"> </span>TABLE
+CREATE<span class="w"> </span>TABLE
+gsql:./schema/tables/table.sql:38:<span class="w"> </span>ERROR:<span class="w">  </span>syntax<span class="w"> </span>error<span class="w"> </span>at<span class="w"> </span>or<span class="w"> </span>near<span class="w"> </span><span class="s2">";"</span>
+LINE<span class="w"> </span><span class="m">6</span>:<span class="w"> </span><span class="o">)</span><span class="w"> </span>PARTITION<span class="w"> </span>BY<span class="w"> </span>RANGE<span class="w"> </span><span class="o">(</span>dates<span class="o">)</span><span class="w"> </span><span class="p">;</span>
+<span class="w">                                     </span>^
+total<span class="w"> </span>time:<span class="w"> </span><span class="m">19</span><span class="w">  </span>ms
+ERROR:<span class="w"> </span>an<span class="w"> </span>error<span class="w"> </span>occurs<span class="w"> </span>when<span class="w"> </span>importing<span class="w"> </span>file<span class="w"> </span>./schema/tables/table.sql
+</code></pre></div>
+
+<ul>
+<li>
+<p>报错原因  <br />
+分区表导出时，ora2pg会将语法转为postgresql语法而不是兼容oracle的opengauss语法。</p>
+</li>
+<li>
+<p>处理  <br />
+手动调整建表语句</p>
+</li>
+</ul>
+<h2 id="2">2.分区表导入错误<a class="headerlink" href="#2" title="本节链接">#</a></h2>
+<ul>
+<li>报错信息</li>
+</ul>
+<div class="highlight"><pre><span></span><code>gsql:./schema/partitions/partition.sql:27:<span class="w"> </span>ERROR:<span class="w">  </span>syntax<span class="w"> </span>error<span class="w"> </span>at<span class="w"> </span>or<span class="w"> </span>near<span class="w"> </span><span class="s2">"MAXVALUE"</span>
+LINE<span class="w"> </span><span class="m">2</span>:<span class="w"> </span>...1<span class="w"> </span><span class="m">00</span>:00:00<span class="s1">','</span>SYYYY-MM-DD<span class="w"> </span>HH24:MI:SS<span class="err">'</span><span class="o">)</span><span class="w"> </span>AND<span class="w"> </span>DATES<span class="w"> </span>&lt;<span class="w"> </span>MAXVALUE<span class="w"> </span>A...
+<span class="w">                                                             </span>^
+total<span class="w"> </span>time:<span class="w"> </span><span class="m">26</span><span class="w">  </span>ms
+ERROR:<span class="w"> </span>an<span class="w"> </span>error<span class="w"> </span>occurs<span class="w"> </span>when<span class="w"> </span>importing<span class="w"> </span>file<span class="w"> </span>./schema/partitions/partition.sql.
+</code></pre></div>
+
+<ul>
+<li>
+<p>报错原因 <br />
+分区表导出时，ora2pg转换为继承表，不存在maxvalue值</p>
+</li>
+<li>
+<p>处理 <br />
+手动调整建表语句</p>
+</li>
+</ul>
+<h2 id="3">3.导入表数据表不存在，实际数据库存在表<a class="headerlink" href="#3" title="本节链接">#</a></h2>
+<ul>
+<li>报错信息</li>
+</ul>
+<div class="highlight"><pre><span></span><code>[2024-11-06 20:17:49] Isolation level: SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
+[2024-11-06 20:17:49] Retrieving partitions information...
+[2024-11-06 20:18:07] Truncating table EMP_BONUS...
+[2024-11-06 20:18:07] Looking how to retrieve data from EMP_BONUS...
+[2024-11-06 20:18:07] DEGUG: Query sent to Oracle: SELECT "EMPLOYEE_ID","BONUS_YEAR","SALARY","BONUS" FROM "ROOT"."EMP_BONUS" a
+[2024-11-06 20:18:07] Fetching all data from EMP_BONUS tuples...
+[2024-11-06 20:18:07] DEBUG: number of rows 0 extracted from table EMP_BONUS
+[2024-11-06 20:18:07] Dumping data from table EMP_BONUS into PostgreSQL table EMP_BONUS...
+[2024-11-06 20:18:07] Setting client_encoding to UTF8...
+[2024-11-06 20:18:07] Disabling synchronous commit when writing to PostgreSQL...
+[2024-11-06 20:18:07] DEBUG: Creating output for 10000 tuples
+[2024-11-06 20:18:07] DEBUG: Sending COPY bulk output directly to PostgreSQL backend
+DBD::Pg::db do failed: ERROR:  relation "emp_bonus" does not exist at /root/perl5/lib/perl5/Ora2Pg.pm line 16296.
+[2024-11-06 20:18:07] FATAL: ERROR:  relation "emp_bonus" does not exist
+</code></pre></div>
+
+<ul>
+<li>
+<p>报错原因 <br />
+默认从public 中查询表，配置文件中的PG_SCHEMA不生效，只能设置为：oracle的schema一一对应opengauss里的schema</p>
+</li>
+<li>
+<p>处理 <br />
+修改配置文件ora2pg.conf，在sql脚本开头设置search_path</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code>EXPORT_SCHEMA<span class="w">   </span><span class="m">1</span>
+SCHEMA<span class="w">  </span>ROOT
+CREATE_SCHEMA<span class="w">  </span><span class="m">0</span>
+COMPILE_SCHEMA<span class="w">  </span><span class="m">1</span>
+<span class="c1">#PG_SCHEME  test</span>
+</code></pre></div>
+
+<h2 id="4">4.导入数据字符集错误<a class="headerlink" href="#4" title="本节链接">#</a></h2>
+<ul>
+<li>报错信息</li>
+</ul>
+<div class="highlight"><pre><span></span><code>Wide<span class="w"> </span>character<span class="w"> </span><span class="k">in</span><span class="w"> </span>subroutine<span class="w"> </span>entry<span class="w"> </span>at<span class="w"> </span>/root/perl5/lib/perl5/Ora2Pg.pm<span class="w"> </span>line<span class="w"> </span><span class="m">16300</span>.
+Issuing<span class="w"> </span>rollback<span class="o">()</span><span class="w"> </span>due<span class="w"> </span>to<span class="w"> </span>DESTROY<span class="w"> </span>without<span class="w"> </span>explicit<span class="w"> </span>disconnect<span class="o">()</span><span class="w"> </span>of<span class="w"> </span>DBD::Oracle::db<span class="w"> </span>handle<span class="w"> </span><span class="o">(</span><span class="nv">DESCRIPTION</span><span class="o">=(</span><span class="nv">ADDRESS</span><span class="o">=(</span><span class="nv">HOST</span><span class="o">=</span>&lt;HOST_IP&gt;<span class="o">)(</span><span class="nv">PROTOCOL</span><span class="o">=</span>tcp<span class="o">)(</span><span class="nv">PORT</span><span class="o">=</span><span class="m">1521</span><span class="o">))(</span><span class="nv">CONNECT_DATA</span><span class="o">=(</span><span class="nv">SID</span><span class="o">=</span>helowin<span class="o">)))</span><span class="w"> </span>at<span class="w"> </span>/root/perl5/lib/perl5/Ora2Pg.pm<span class="w"> </span>line<span class="w"> </span><span class="m">16300</span>
+</code></pre></div>
+
+<ul>
+<li>
+<p>报错原因  <br />
+oracle 字符集为：NLS_NCHAR = AL32UTF8 <br />
+opengauss 数据库字符集为：SQL_ASCII <br />
+Perl 处理 UTF-8 字符时未正确设置编码，导致宽字符（如中文或其他非 ASCII 字符）在程序中被错误处理   </p>
+</li>
+<li>
+<p>处理 <br />
+创建数据库时指定编码为UTF8   </p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="n">dbname</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="k">ENCODING</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'UTF8'</span><span class="p">;</span>
+</code></pre></div>
+
+<h3 id="_1">遗留问题<a class="headerlink" href="#_1" title="本节链接">#</a></h3>
+<h4 id="oracleschemaopengaussschema">导入数据时若oracle的schema与opengauss的schema不一致会导致查询表不存在<a class="headerlink" href="#oracleschemaopengaussschema" title="本节链接">#</a></h4>
+<h4 id="scn">增量迁移时只能根据表的时间戳字段或指定的增量条件迁移，无法根据scn迁移<a class="headerlink" href="#scn" title="本节链接">#</a></h4>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/opengauss/%E8%BF%81%E7%A7%BB%E8%BD%AC%E6%8D%A2/oracle%E8%BF%81%E7%A7%BB%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95.md">Miss001/data-engineering-notes · database/domestic/opengauss/迁移转换/oracle迁移问题记录.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/mysql-jia-gou-binlog-cha-xun/"><small>上一篇</small>MySQL 架构：binlog查询</a><a class="glass next" href="/posts/opengauss-zhi-shi-jie-gou-1-ti-xi-jia-gou/"><small>下一篇</small>openGauss 知识结构：体系架构</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#1">1.分区表导入语法错误</a></li><li><a href="#2">2.分区表导入错误</a></li><li><a href="#3">3.导入表数据表不存在，实际数据库存在表</a></li><li><a href="#4">4.导入数据字符集错误</a><ul><li><a href="#_1">遗留问题</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

@@ -43,7 +43,7 @@ img { max-width: 100%; }
 .blobs i:nth-child(1) { width: 520px; height: 520px; background: var(--blob1); left: -140px; top: -120px; }
 .blobs i:nth-child(2) { width: 460px; height: 460px; background: var(--blob2); right: -120px; top: 120px; }
 .blobs i:nth-child(3) { width: 560px; height: 560px; background: var(--blob3); left: 30%; bottom: -260px; }
-.wrap { max-width: 1160px; margin-left: auto; margin-right: auto; padding-left: 28px; padding-right: 28px; }
+.wrap { max-width: 1440px; margin-left: auto; margin-right: auto; padding-left: 28px; padding-right: 28px; }
 .main { padding-top: 40px; min-height: calc(100vh - 220px); }
 .glass { background: var(--glass); border: 1px solid var(--stroke); box-shadow: var(--shadow), inset 0 0 0 1px var(--edge); backdrop-filter: blur(22px) saturate(150%); -webkit-backdrop-filter: blur(22px) saturate(150%); border-radius: 26px; }
 .eyebrow { font-size: 12.5px; color: var(--muted); letter-spacing: .08em; }
@@ -183,7 +183,7 @@ a.t-role:hover { transform: translateY(-2px); }
 section.t-stack { grid-template-columns: repeat(5, 1fr); }
 
 /* ===== 文章页 ===== */
-.post-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 24px; align-items: start; }
+.post-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 24px; align-items: start; max-width: 1240px; margin-left: auto; margin-right: auto; }
 .post { min-width: 0; }
 .post-header { padding: 30px 34px; background: linear-gradient(150deg, var(--c-soft), transparent 55%), var(--glass); }
 .post-header h1 { margin: 10px 0 10px; font-size: 32px; line-height: 1.35; font-weight: 780; letter-spacing: -.01em; }
@@ -317,3 +317,14 @@ section.t-stack { grid-template-columns: repeat(5, 1fr); }
   .search-panel { margin-top: 70px; }
 }
 .cat-hero .ri { background: var(--glass-2); box-shadow: inset 0 0 0 1px var(--edge); }
+
+/* ===== 分页 / 归档 / 更多 ===== */
+.pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 28px 0 0; }
+.pager .gap { color: var(--muted); padding: 0 4px; }
+.pager .pager-info { width: 100%; text-align: center; font-size: 13px; color: var(--muted); margin-top: 4px; }
+.more-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 24px 0 0; }
+.tag-group .more-li a { color: var(--muted); }
+.tag-group .more-li a:hover { color: var(--ink); }
+.prose pre { overflow-x: auto; }
+.sec-head h2 { white-space: nowrap; flex: none; }
+.sec-head .chips { justify-content: flex-end; }

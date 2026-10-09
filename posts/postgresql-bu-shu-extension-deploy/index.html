@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PostgreSQL 部署：扩展安装 · Miss001</title>
+<meta name="description" content="要点：内置扩展包安装、orafce 兼容扩展包安装、postgis 扩展包安装。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="PostgreSQL 部署：扩展安装 · Miss001">
+<meta property="og:description" content="要点：内置扩展包安装、orafce 兼容扩展包安装、postgis 扩展包安装。">
+<meta property="og:url" content="https://miss001.github.io/posts/postgresql-bu-shu-extension-deploy/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/postgresql-bu-shu-extension-deploy/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 10 月 3 日</span><span>·</span><span>4 分钟阅读</span></div>
+    <h1>PostgreSQL 部署：扩展安装</h1>
+    <p class="post-summary">要点：内置扩展包安装、orafce 兼容扩展包安装、postgis 扩展包安装。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/postgresql/">PostgreSQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">内置扩展包安装<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<h4 id="_2">检查已安装的扩展包<a class="headerlink" href="#_2" title="本节链接">#</a></h4>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>-i<span class="w"> </span>-u<span class="w"> </span>postgres
+/opt/postgresql/bin/psql
+<span class="se">\d</span>x
+或
+SELECT<span class="w"> </span>*<span class="w"> </span>FROM<span class="w"> </span>pg_available_extensions<span class="w"> </span>
+</code></pre></div>
+
+<h4 id="_3">扩展包路径<a class="headerlink" href="#_3" title="本节链接">#</a></h4>
+<p><code>/opt/postgresql/share/extension</code></p>
+<h4 id="_4">编译安装指定扩展包<a class="headerlink" href="#_4" title="本节链接">#</a></h4>
+<p>进入源码编译</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/opt/postgresql-17.0/contrib/uuid-ossp
+make<span class="w"> </span><span class="p">&amp;</span><span class="w"> </span>make<span class="w"> </span>install
+</code></pre></div>
+
+<h4 id="_5">重启加载扩展包<a class="headerlink" href="#_5" title="本节链接">#</a></h4>
+<div class="highlight"><pre><span></span><code>重启
+sh<span class="w"> </span>/opt/postgresql/bin/restart-postgres.sh
+
+切换用户
+sudo<span class="w"> </span>-i<span class="w"> </span>-u<span class="w"> </span>postgres
+连接postgres
+/opt/postgresql/bin/psql
+创建扩展方法
+CREATE<span class="w"> </span>EXTENSION<span class="w"> </span>IF<span class="w"> </span>NOT<span class="w"> </span>EXISTS<span class="w"> </span><span class="s2">"uuid-ossp"</span><span class="p">;</span>
+</code></pre></div>
+
+<h2 id="orafce">orafce 兼容扩展包安装<a class="headerlink" href="#orafce" title="本节链接">#</a></h2>
+<p>实现oracle函数的使用</p>
+<h2 id="postgis">postgis 扩展包安装<a class="headerlink" href="#postgis" title="本节链接">#</a></h2>
+<p>实现地理空间功能的使用</p>
+<ul>
+<li>依赖安装</li>
+</ul>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>libxml2-devel<span class="w"> </span>libjpeg-devel<span class="w"> </span>libpng-devel<span class="w"> </span>libtiff<span class="w"> </span>libtiff-devel<span class="w"> </span>zlib-devel<span class="w"> </span>-y
+<span class="nb">export</span><span class="w"> </span><span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span><span class="s2">"/usr/local/lib:</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">"</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span><span class="s2">"/usr/local/lib64:</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">"</span>
+</code></pre></div>
+
+<ul>
+<li>1.cmake</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://cmake.org/files/v3.26/cmake-3.26.0.tar.gz
+tar<span class="w"> </span>-zxvf<span class="w"> </span>cmake-3.26.0.tar.gz
+<span class="nb">cd</span><span class="w"> </span>cmake-3.26.0
+./bootstrap
+make
+sudo<span class="w"> </span>make<span class="w"> </span>install
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">"/usr/local/bin:</span><span class="nv">$PATH</span><span class="s2">"</span>
+<span class="nb">source</span><span class="w"> </span>~/.bashrc
+</code></pre></div>
+
+<ul>
+<li>2.sqlite</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://www.sqlite.org/2024/sqlite-autoconf-3470000.tar.gz
+tar<span class="w"> </span>-zxvf<span class="w"> </span>sqlite-autoconf-3470000.tar.gz
+<span class="nb">cd</span><span class="w"> </span>sqlite-autoconf-3410000
+./configure<span class="w"> </span>--prefix<span class="o">=</span>/usr/local
+make
+make<span class="w"> </span>install
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"/usr/local/lib"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>-a<span class="w"> </span>/etc/ld.so.conf.d/sqlite3.conf
+sudo<span class="w"> </span>ldconfig
+</code></pre></div>
+
+<ul>
+<li>3.C++14<br />
+  修改镜像源：<br />
+  vi /etc/yum.repos.d/CentOS-SCLo-scl.repo</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">[centos-sclo-sclo]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-7 - SCLo sclo</span>
+<span class="c1">#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&amp;arch=$basearch&amp;repo=sclo-sclo</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/7/sclo/$basearch/sclo/</span>
+</code></pre></div>
+
+<p>vi /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo</p>
+<div class="highlight"><pre><span></span><code><span class="k">[centos-sclo-rh]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-7 - SCLo rh</span>
+<span class="c1">#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&amp;arch=$basearch&amp;repo=sclo-rh</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/7/sclo/$basearch/rh/</span>
+</code></pre></div>
+
+<p>安装</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>clean<span class="w"> </span>all
+sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>centos-release-scl
+sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>devtoolset-8<span class="w"> </span>devtoolset-8-gcc<span class="w"> </span>devtoolset-8-gcc-c++<span class="w"> </span>devtoolset-8-binutils<span class="w"> </span>
+scl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>devtoolset-8<span class="w"> </span>bash
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span>/opt/rh/devtoolset-8/root/usr/bin:<span class="nv">$PATH</span>
+</code></pre></div>
+
+<ul>
+<li>4.proj</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://download.osgeo.org/proj/proj-8.2.0.tar.gz
+tar<span class="w"> </span>-zxvf<span class="w"> </span>proj-8.2.0.tar.gz
+<span class="nb">cd</span><span class="w"> </span>proj-8.2.0
+./configure<span class="w"> </span>--prefix<span class="o">=</span>/usr/local
+make<span class="w"> </span>
+make<span class="w"> </span>install
+<span class="nb">export</span><span class="w"> </span><span class="nv">PKG_CONFIG_PATH</span><span class="o">=</span>/usr/local/lib/pkgconfig:<span class="nv">$PKG_CONFIG_PATH</span>
+</code></pre></div>
+
+<ul>
+<li>5.geos</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://github.com/libgeos/geos/releases/download/3.13.0/geos-3.13.0.tar.bz2
+tar<span class="w"> </span>-xvjf<span class="w"> </span>geos-3.13.0.tar.bz2
+<span class="nb">cd</span><span class="w"> </span>geos-3.13.0
+mkdir<span class="w"> </span>build
+<span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>-DCMAKE_CXX_STANDARD<span class="o">=</span><span class="m">14</span><span class="w"> </span>..<span class="w"> </span>
+make
+make<span class="w"> </span>install
+</code></pre></div>
+
+<ul>
+<li>6.python3</li>
+</ul>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>Miniconda3-latest-Linux-x86_64.sh
+<span class="nb">export</span><span class="w"> </span><span class="nv">CONDA_HOME</span><span class="o">=</span>/opt/miniconda3
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">CONDA_HOME</span><span class="si">}</span>/bin:<span class="nv">$PATH</span>
+</code></pre></div>
+
+<ul>
+<li>7.gdal</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://download.osgeo.org/gdal/3.4.0/gdal-3.4.0.tar.gz
+tar<span class="w"> </span>-xvzf<span class="w"> </span>gdal-3.4.0.tar.gz
+<span class="nb">cd</span><span class="w"> </span>gdal-3.4.0
+./configure<span class="w"> </span>--prefix<span class="o">=</span>/usr/local<span class="w">  </span>--with-python<span class="o">=</span>python3<span class="w"> </span>--with-sqlite3<span class="o">=</span>/usr/local
+make<span class="w"> </span>
+make<span class="w"> </span>install
+</code></pre></div>
+
+<ul>
+<li>8.abseil-cpp</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://github.com/abseil/abseil-cpp/archive/refs/heads/master.zip
+unzip<span class="w"> </span>abseil-cpp-master.zip
+<span class="nb">cd</span><span class="w"> </span>abseil-cpp-master
+mkdir<span class="w"> </span>build
+<span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>-DCMAKE_CXX_STANDARD<span class="o">=</span><span class="m">17</span><span class="w"> </span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span>/opt/abseil-cpp<span class="w">  </span>-DABSL_PROPAGATE_CXX_STD<span class="o">=</span>ON<span class="w">  </span>-DCMAKE_POSITION_INDEPENDENT_CODE<span class="o">=</span>ON<span class="w"> </span>..
+make
+make<span class="w"> </span>install
+<span class="nb">export</span><span class="w"> </span><span class="nv">PKG_CONFIG_PATH</span><span class="o">=</span>/opt/abseil-cpp/lib64/pkgconfig:<span class="nv">$PKG_CONFIG_PATH</span>
+</code></pre></div>
+
+<ul>
+<li>9.protobuf </li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://github.com/protocolbuffers/protobuf/releases/download/v28.3/protobuf-28.3.tar.gz
+tar<span class="w"> </span>-xzf<span class="w"> </span>protobuf-28.3.tar.gz
+<span class="nb">cd</span><span class="w"> </span>protobuf-28.3
+mkdir<span class="w"> </span>build
+<span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>-DCMAKE_CXX_STANDARD<span class="o">=</span><span class="m">14</span><span class="w"> </span>-Dprotobuf_BUILD_TESTS<span class="o">=</span>OFF<span class="w"> </span>-DBUILD_SHARED_LIBS<span class="o">=</span>ON<span class="w"> </span>-Dprotobuf_ABSL_PROVIDER<span class="o">=</span>package<span class="w"> </span>-DABSL_ROOT_DIR<span class="o">=</span>/opt/abseil-cpp<span class="w"> </span>-DCMAKE_PREFIX_PATH<span class="o">=</span>/opt/abseil-cpp/lib64/cmake/absl<span class="w"> </span>..
+make<span class="w">          </span>
+make<span class="w"> </span>install
+<span class="nb">export</span><span class="w"> </span><span class="nv">PKG_CONFIG_PATH</span><span class="o">=</span>/usr/local/lib64/pkgconfig:<span class="nv">$PKG_CONFIG_PATH</span>
+</code></pre></div>
+
+<ul>
+<li>9.protobuf-c
+  not work yet</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://github.com/protobuf-c/protobuf-c/releases/download/v1.5.0/protobuf-c-1.5.0.tar.gz
+tar<span class="w"> </span>-xzf<span class="w"> </span>protobuf-c-1.5.0.tar.gz
+<span class="nb">cd</span><span class="w"> </span>protobuf-c-1.5.0
+./configure<span class="w">  </span>--prefix<span class="o">=</span>/usr/local
+make<span class="w"> </span>
+make<span class="w"> </span>install
+</code></pre></div>
+
+<ul>
+<li>10.postgis</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">"/usr/bin:</span><span class="nv">$PATH</span><span class="s2">"</span>
+
+wget<span class="w"> </span>https://download.osgeo.org/postgis/source/postgis-3.5.0.tar.gz
+tar<span class="w"> </span>-xvzf<span class="w"> </span>postgis-3.5.0.tar.gz
+<span class="nb">cd</span><span class="w"> </span>postgis-3.5.0
+./configure<span class="w"> </span>--with-pgconfig<span class="o">=</span>/opt/postgresql/bin/pg_config<span class="w"> </span>--with-geosconfig<span class="o">=</span>/usr/local/bin/geos-config<span class="w"> </span>--without-protobuf
+make
+make<span class="w"> </span>install
+</code></pre></div>
+
+<p>create extension postgis;</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/postgresql/%E9%83%A8%E7%BD%B2/extension-deploy.md">Miss001/data-engineering-notes · database/postgresql/部署/extension-deploy.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/opengauss-bu-shu-deploy-extension/"><small>上一篇</small>openGauss 部署：扩展安装</a><a class="glass next" href="/posts/gaussdb-ji-ben-yu-fa-dws-shu-cang/"><small>下一篇</small>GaussDB 基本语法：DWS数仓</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">内置扩展包安装</a></li><li><a href="#orafce">orafce 兼容扩展包安装</a></li><li><a href="#postgis">postgis 扩展包安装</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

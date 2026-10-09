@@ -1,3 +1,7 @@
 __pycache__/
 .venv/
 .DS_Store
+# 由 import_notes.py 从笔记仓库生成，GitHub Actions 每次构建时重新生成
+_src/notes/
+# 本地 clone 的笔记仓库
+_notes/

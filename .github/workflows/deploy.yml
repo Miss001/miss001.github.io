@@ -1,0 +1,58 @@
+name: Build & deploy blog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"   # 每小时拉一次笔记仓库，笔记有更新就自动上线
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout blog
+        uses: actions/checkout@v4
+
+      - name: Checkout notes (full history for dates)
+        run: git clone https://github.com/Miss001/data-engineering-notes.git "$RUNNER_TEMP/notes"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install markdown pygments pypinyin
+
+      - name: Import notes & build
+        env:
+          TZ: Asia/Shanghai
+        run: |
+          python3 import_notes.py --notes "$RUNNER_TEMP/notes"
+          python3 build.py
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

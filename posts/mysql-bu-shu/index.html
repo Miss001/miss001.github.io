@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL 部署：my.cnf · Miss001</title>
+<meta name="description" content="要点：my.cnf。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MySQL 部署：my.cnf · Miss001">
+<meta property="og:description" content="要点：my.cnf。">
+<meta property="og:url" content="https://miss001.github.io/posts/mysql-bu-shu/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mysql-bu-shu/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 8 月 1 日</span><span>·</span><span>4 分钟阅读</span></div>
+    <h1>MySQL 部署：my.cnf</h1>
+    <p class="post-summary">要点：my.cnf。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mysql/">MySQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="mycnf">my.cnf<a class="headerlink" href="#mycnf" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">[mysqld]</span>
+<span class="c1">#端口号</span>
+<span class="na">port</span><span class="o">=</span><span class="s">31306</span>
+<span class="c1">#字符集</span>
+<span class="na">character-set-server</span><span class="o">=</span><span class="s">utf8mb4</span>
+<span class="c1">#字符集排序规则</span>
+<span class="na">collation-server</span><span class="o">=</span><span class="s">utf8mb4_bin</span>
+<span class="c1">#存储引擎</span>
+<span class="na">default-storage-engine</span><span class="o">=</span><span class="s">INNODB</span>
+<span class="c1">#密码验证插件</span>
+<span class="na">default_authentication_plugin</span><span class="o">=</span><span class="s">mysql_native_password</span>
+<span class="c1">#表名不区分大小写</span>
+<span class="na">lower_case_table_names</span><span class="o">=</span><span class="s">1</span>
+<span class="c1">#单个表单个数据文件</span>
+<span class="na">innodb_file_per_table</span><span class="o">=</span><span class="s">1</span>
+<span class="c1">#信任所有存储函数创建者</span>
+<span class="na">log_bin_trust_function_creators</span><span class="o">=</span><span class="s">1</span>
+<span class="c1">#跳过DNS解析</span>
+<span class="na">skip_name_resolve</span>
+
+<span class="c1"># 各数据文件存储目录,根据环境情况自定义配置</span>
+<span class="c1">#软件安装目录</span>
+<span class="c1">#basedir=/usr/local/mysql</span>
+<span class="c1">#数据目录，根据磁盘挂载目录自定义配置</span>
+<span class="na">datadir</span><span class="o">=</span><span class="s">/home/mysql</span>
+<span class="c1">#innodb表空间，一般和数据目录配置一致即可</span>
+<span class="na">innodb_directories</span><span class="o">=</span><span class="s">/home/mysql/</span>
+<span class="c1">#临时文件</span>
+<span class="c1">#tmpdir=/tmp</span>
+
+<span class="c1"># 错误日志及慢日志配置,根据环境情况自定义配置</span>
+<span class="c1">#错误日志文件</span>
+<span class="na">log-error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/home/mysql/error.log</span>
+<span class="c1">#开启慢日志</span>
+<span class="na">slow-query-log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">ON</span>
+<span class="na">slow-query-log-file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/home/mysql/slow.log</span>
+<span class="c1">#记录查询超过30s的sql</span>
+<span class="na">long_query_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">30</span>
+<span class="c1">#记录所有未使用索引的sql</span>
+<span class="na">log_queries_not_using_indexes</span>
+
+<span class="c1"># binlog日志</span>
+<span class="c1">#唯一标识,自然数</span>
+<span class="na">server_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1</span>
+<span class="c1">#开启binlog</span>
+<span class="na">log-bin</span><span class="o">=</span><span class="s">binlog</span>
+<span class="c1">#binlog文件大小</span>
+<span class="na">max_binlog_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1G</span>
+<span class="c1">#默认row,不建议更改</span>
+<span class="na">binlog_format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">row</span>
+<span class="c1">#默认full,不建议更改</span>
+<span class="na">binlog_row_image</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">full</span>
+<span class="c1">#默认off,关闭查询事件写入binlog</span>
+<span class="na">binlog_rows_query_log_events</span><span class="o">=</span><span class="s">OFF</span>
+<span class="c1">#保留7天内的binlog,单位秒</span>
+<span class="na">binlog_expire_logs_seconds</span><span class="o">=</span><span class="s">604800</span>
+<span class="c1">#每进行n次事务提交之后，将进行一次fsync之类的磁盘同步指令来将binlog_cache中的数据强制写入磁盘。n越大，故障时binlog丢失的事务就越多。一般建议100-1000以内</span>
+<span class="na">sync_binlog</span><span class="o">=</span><span class="s">1000</span>
+<span class="c1">#提交事务时，把redo日志写入磁盘文件对应的os cache缓存里去，而不是直接进入磁盘文件，1 秒后才会把 os cache里的数据写入到磁盘文件里去。不建议修改</span>
+<span class="na">innodb_flush_log_at_trx_commit</span><span class="o">=</span><span class="s">2</span>
+
+<span class="c1"># SQL规则</span>
+<span class="c1">#SQL MODE</span>
+<span class="na">sql_mode</span><span class="o">=</span><span class="s">STRICT_TRANS_TABLES,ONLY_FULL_GROUP_BY,ANSI_QUOTES,REAL_AS_FLOAT,PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION</span>
+
+<span class="c1"># 连接</span>
+<span class="c1">#最大连接数</span>
+<span class="na">max_connections</span><span class="o">=</span><span class="s">1000</span>
+<span class="c1">#最大容忍连接错误，超过该限制后新连接无法正常连接mysql</span>
+<span class="na">max_connect_errors</span><span class="o">=</span><span class="s">5000000</span>
+<span class="c1">#交互式连接，超时3小时自动断开</span>
+<span class="na">interactive_timeout</span><span class="o">=</span><span class="s">10800</span>
+<span class="c1">#非交互式连接，超时3小时自动断开</span>
+<span class="na">wait_timeout</span><span class="o">=</span><span class="s">10800</span>
+
+<span class="c1"># 线程</span>
+<span class="c1">#64以内的活跃连接配置0，大于64的依次按照128、96、64、32等进行设置压测(选择的值要小于或等于逻辑cpu数，否则cpu会消耗过高，降低性能)，选择一个最优的值。例如：128核可配置64，40核可配置40</span>
+<span class="na">innodb_thread_concurrency</span><span class="o">=</span><span class="s">64</span>
+<span class="c1">#默认，不建议调过大，会过多消耗cpu</span>
+<span class="na">innodb_parallel_read_threads</span><span class="o">=</span><span class="s">4</span>
+<span class="c1">#连接数达到max_connections时，新来的请求将会被存在堆栈中，以等待某一连接释放资源，该堆栈的数量即back_log，如果等待连接的数量超过back_log，将不被授予连接资源,不能超过cat /proc/sys/net/ipv4/tcp_max_syn_backlog。</span>
+<span class="na">back_log</span><span class="o">=</span><span class="s">500</span>
+<span class="c1">#线程缓存，默认基于8 + (max_connections / 100)</span>
+<span class="na">thread_cache_size</span><span class="o">=</span><span class="s">100</span>
+
+<span class="c1"># 隔离级别</span>
+<span class="c1">#读已提交</span>
+<span class="na">transaction_isolation</span><span class="o">=</span><span class="s">READ-COMMITTED</span>
+
+<span class="c1"># redo log,根据环境情况自定义配置</span>
+<span class="c1">#日志缓冲区，默认16M,对于大量更新、插入或删除许行，增加日志缓冲区，可节省磁盘I/O</span>
+<span class="na">innodb_log_buffer_size</span><span class="w"> </span><span class="o">=</span><span class="s">64M</span>
+<span class="c1">#默认64M, 每次自动扩展 InnoDB系统表空间 的增量大小</span>
+<span class="na">innodb_autoextend_increment</span><span class="o">=</span><span class="s">256M</span>
+<span class="c1">#redo log文件存放的位置</span>
+<span class="c1">#innodb_log_group_home_dir=/home/mysql/</span>
+<span class="c1">#redo log的总大小=(innodb_log_files_in_group * innodb_log_file_size ),8.0.30以后默认生成32个redo log 文件, 默认100M,最大128G</span>
+<span class="na">innodb_redo_log_capacity</span><span class="o">=</span><span class="s">8G</span><span class="w"> </span><span class="c1"># io</span>
+<span class="c1">#默认200，一般设置磁盘io能力的70%-80%</span>
+<span class="na">innodb_io_capacity</span><span class="o">=</span><span class="s">5000</span>
+<span class="c1">#默认 2**64-1，一般设置磁盘io上限</span>
+<span class="na">innodb_io_capacity_max</span><span class="o">=</span><span class="s">10000</span>
+<span class="c1">#禁用同步刷脏，遵循innodb_io_capacity的值刷脏，避免redo空间快用完时，系统使用最大io频率刷脏。</span>
+<span class="na">innodb_flush_sync</span><span class="o">=</span><span class="s">OFF</span>
+<span class="c1">#默认,不修改</span>
+<span class="na">innodb_flush_method</span><span class="o">=</span><span class="s">O_DIRECT</span>
+
+<span class="c1"># memory,根据环境情况自定义配置</span>
+<span class="c1">#缓冲池大小，一般设置服务器可用内存的50%-75%。并且等于（ innodb_buffer_pool_chunk_size（128M） * innodb_buffer_pool_instances）</span>
+<span class="na">innodb_buffer_pool_size</span><span class="o">=</span><span class="s">192G</span>
+<span class="c1">#缓冲池实例，默认8,最大64。多核服务器下开启了numa模式，建议设置为numa节点的倍数。</span>
+<span class="na">innodb_buffer_pool_instances</span><span class="o">=</span><span class="s">16</span>
+<span class="c1">#启用 NUMA 交错内存策略以分配 InnoDB 缓冲池。 Linux 系统支持NUMA才开启</span>
+<span class="na">innodb_numa_interleave</span><span class="o">=</span><span class="s">on</span>
+
+<span class="c1"># 其他参数</span>
+<span class="c1">#MyISAM表的索引块的缓冲区大小，会话级别。默认8M</span>
+<span class="na">key_buffer_size</span><span class="o">=</span><span class="s">16M</span>
+<span class="c1">#在修复表期间对MyISAM索引进行排序或使用CREATE INDEX或ALTER TABLE创建索引时分配的缓冲区大小。默认8M</span>
+<span class="na">myisam_sort_buffer_size</span><span class="o">=</span><span class="s">96M</span>
+<span class="c1">#每个需要进行排序的线程分配的缓冲区的大小.默认256kb</span>
+<span class="na">sort_buffer_size</span><span class="o">=</span><span class="s">8M</span>
+<span class="c1">#每个需要进行普通索引扫描、范围索引扫描以及不使用索引并因此执行全表扫描的联接、哈希连接的内存量的线程分配的缓冲区的大小，默认256kb</span>
+<span class="na">join_buffer_size</span><span class="o">=</span><span class="s">8M</span>
+<span class="c1">#对表进行顺序扫描的每个线程都会为其扫描的每个表分配此大小的缓冲区，默认128kb</span>
+<span class="na">read_buffer_size</span><span class="o">=</span><span class="s">4M</span>
+<span class="c1">#随机读缓冲区大小，当按任意顺序读取行时（列如按照排序顺序）将分配一个随机读取缓冲区.默认256kb</span>
+<span class="na">read_rnd_buffer_size</span><span class="o">=</span><span class="s">8M</span><span class="w"> </span><span class="c1">#当前预准备语句的数量大于该限制时，无法准备新语句。 默认16382</span>
+<span class="na">max_prepared_stmt_count</span><span class="o">=</span><span class="s">1000000</span>
+<span class="c1">#文件打开数限制，一般无需修改</span>
+<span class="na">open_files_limit</span><span class="o">=</span><span class="s">655350</span>
+<span class="c1">#打开表缓存大小，根据max_connections * 每个连接访问表的数量 估算 。默认不限制大小</span>
+<span class="na">table_open_cache</span><span class="o">=</span><span class="s">2000</span>
+<span class="c1">#内存临时表的最大值，当超过该大小，MySQL自动将内存中的内部临时表转换为InnoDB磁盘上的内部临时表。默认16M</span>
+<span class="na">tmp_table_size</span><span class="o">=</span><span class="s">96M</span>
+<span class="c1">#与tmp_table_size 一致</span>
+<span class="na">max_heap_table_size</span><span class="o">=</span><span class="s">96M</span>
+<span class="c1">#服务器和客户端之间的任何单个消息的大小设置上限。设置过小会导致插入语句或同步失败。默认64M</span>
+<span class="na">max_allowed_packet</span><span class="o">=</span><span class="w"> </span><span class="s">256M</span>
+
+<span class="k">[mysql]</span>
+<span class="na">default-character-set</span><span class="o">=</span><span class="s">utf8mb4</span>
+
+<span class="k">[client]</span>
+<span class="na">default-character-set</span><span class="o">=</span><span class="s">utf8mb4</span>
+<span class="na">port</span><span class="o">=</span><span class="s">31306</span>
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/tree/main/database/mysql/%E9%83%A8%E7%BD%B2">Miss001/data-engineering-notes · database/mysql/部署</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/opengauss-zhu-bei-fu-zhi-2-dan-zhu-kuo-rong-bei-ku/"><small>上一篇</small>openGauss 主备复制：单主扩容备库</a><a class="glass next" href="/posts/mysql-qi-ta-yin-hao-de-qu-bie/"><small>下一篇</small>MySQL 其他：引号的区别</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#mycnf">my.cnf</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>
