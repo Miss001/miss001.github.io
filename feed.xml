@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>宇宙超级无敌美少女的技术博客</title>
-  <subtitle>宇宙超级无敌美少女的技术博客：数据工程、Agent 开发与 UI 设计笔记。</subtitle>
+  <subtitle>宇宙超级无敌美少女的技术博客：数据工程、AI 应用与 UI 设计笔记。</subtitle>
   <link href="https://miss001.github.io/"/>
   <link rel="self" href="https://miss001.github.io/feed.xml"/>
   <id>https://miss001.github.io/</id>
-  <updated>2026-10-09T08:48:52Z</updated>
+  <updated>2026-10-09T09:01:45Z</updated>
   <author><name>宇宙超级无敌美少女</name></author>
   <entry>
     <title>Conda 环境离线安装与迁移：conda-pack 打包到内网服务器</title>
@@ -28,7 +28,7 @@
     <link href="https://miss001.github.io/posts/centos7-docker-dify/"/>
     <id>https://miss001.github.io/posts/centos7-docker-dify/</id>
     <updated>2026-10-08T00:00:00+08:00</updated>
-    <category term="Agent 开发"/>
+    <category term="AI 应用"/>
     <summary>CentOS 7 停止维护后官方源不好用了：换成阿里云的 yum 源和 docker-ce 源，安装指定版本 Docker；再拉取 Dify 源码，一条 docker compose 命令启动 Dify。</summary>
   </entry>
   <entry>
@@ -36,7 +36,7 @@
     <link href="https://miss001.github.io/posts/ollama-qwen25-gguf/"/>
     <id>https://miss001.github.io/posts/ollama-qwen25-gguf/</id>
     <updated>2026-10-07T00:00:00+08:00</updated>
-    <category term="Agent 开发"/>
+    <category term="AI 应用"/>
     <summary>离线环境无法 ollama pull，可以从 Hugging Face 下载 GGUF 文件，写一个 Modelfile（模型路径 + 对话模板 + 停止词），再用 ollama create 导入并通过 API 测试。</summary>
   </entry>
   <entry>
@@ -52,7 +52,7 @@
     <link href="https://miss001.github.io/posts/ollama-offline-install/"/>
     <id>https://miss001.github.io/posts/ollama-offline-install/</id>
     <updated>2026-10-06T00:00:00+08:00</updated>
-    <category term="Agent 开发"/>
+    <category term="AI 应用"/>
     <summary>在无法直连外网的 Linux 服务器上安装 Ollama：改写官方 install.sh 走本地安装包、配置 systemd 开机自启，或者直接用 Docker 一条命令跑起来。</summary>
   </entry>
   <entry>

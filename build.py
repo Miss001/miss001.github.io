@@ -24,7 +24,7 @@ SITE = {
     "short": "Miss001",
     "author": "宇宙超级无敌美少女",
     "roles": ["数据工程师", "Agent 开发", "UI 设计"],
-    "desc": "宇宙超级无敌美少女的技术博客：数据工程、Agent 开发与 UI 设计笔记。",
+    "desc": "宇宙超级无敌美少女的技术博客：数据工程、AI 应用与 UI 设计笔记。",
     "url": "https://miss001.github.io",
     "github": "https://github.com/Miss001",
     "email": "522160919@qq.com",
@@ -34,8 +34,8 @@ SITE = {
 CATEGORIES = [
     {"slug": "data", "name": "数据工程", "color": "sage",
      "desc": "Spark / Hive / ES / Kylin 数据链路，MySQL、Oracle、TiDB 与国产数据库，环境与部署。"},
-    {"slug": "agent", "name": "Agent 开发", "color": "sky",
-     "desc": "Ollama、Dify 本地大模型部署，NL2SQL 与工具调用，让 Agent 能查数、能干活。"},
+    {"slug": "agent", "name": "AI 应用", "color": "sky",
+     "desc": "Ollama、Dify 本地大模型部署，RAG、NL2SQL 与 Agent 应用。"},
     {"slug": "design", "name": "UI 设计", "color": "peach",
      "desc": "排版、配色与交互细节，把数据和 Agent 的能力做成清楚好用的界面。"},
 ]
@@ -419,7 +419,7 @@ def main():
         write(ROOT / "posts" / p["slug"] / "index.html", layout(p["title"], body, "", p["summary"], p["url"]))
 
     # ---------- 分类 ----------
-    cat_index = '<header class="page-head"><h1>分类</h1><p>按三个方向整理：数据工程、Agent 开发、UI 设计。</p></header>'
+    cat_index = '<header class="page-head"><h1>分类</h1><p>按三个方向整理：数据工程、AI 应用、UI 设计。</p></header>'
     cat_index += '<section class="bento cats">' + "".join(role_tile(c, len(by_cat[c["slug"]])) for c in CATEGORIES) + "</section>"
     for c in CATEGORIES:
         ps = by_cat[c["slug"]]
