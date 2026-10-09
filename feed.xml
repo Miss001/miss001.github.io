@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>宇宙超级无敌美少女的技术博客</title>
+  <link href="https://miss001.github.io/"/>
+  <id>https://miss001.github.io/</id>
+  <updated>2026-10-09T08:02:50Z</updated>
+  <author><name>宇宙超级无敌美少女</name></author>
+  <entry>
+    <title>Conda 环境离线安装与迁移：conda-pack 打包到内网服务器</title>
+    <link href="https://miss001.github.io/posts/conda-offline-migration/"/>
+    <id>https://miss001.github.io/posts/conda-offline-migration/</id>
+    <updated>2026-10-09T00:00:00+08:00</updated>
+    <summary>内网服务器装不了包？在有网的机器上建好 conda 环境，用 conda-pack 打成压缩包拷过去解压即用；也可以只下载离线包，用 --offline / --no-index 安装。</summary>
+  </entry>
+  <entry>
+    <title>CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify</title>
+    <link href="https://miss001.github.io/posts/centos7-docker-dify/"/>
+    <id>https://miss001.github.io/posts/centos7-docker-dify/</id>
+    <updated>2026-10-08T00:00:00+08:00</updated>
+    <summary>CentOS 7 停止维护后官方源不好用了：换成阿里云的 yum 源和 docker-ce 源，安装指定版本 Docker；再拉取 Dify 源码，一条 docker compose 命令启动 Dify。</summary>
+  </entry>
+  <entry>
+    <title>Ollama 导入本地 GGUF 模型：以 Qwen2.5-3B 为例</title>
+    <link href="https://miss001.github.io/posts/ollama-qwen25-gguf/"/>
+    <id>https://miss001.github.io/posts/ollama-qwen25-gguf/</id>
+    <updated>2026-10-07T00:00:00+08:00</updated>
+    <summary>离线环境无法 ollama pull，可以从 Hugging Face 下载 GGUF 文件，写一个 Modelfile（模型路径 + 对话模板 + 停止词），再用 ollama create 导入并通过 API 测试。</summary>
+  </entry>
+  <entry>
+    <title>Ollama 离线安装：systemd 服务与 Docker 两种方式</title>
+    <link href="https://miss001.github.io/posts/ollama-offline-install/"/>
+    <id>https://miss001.github.io/posts/ollama-offline-install/</id>
+    <updated>2026-10-06T00:00:00+08:00</updated>
+    <summary>在无法直连外网的 Linux 服务器上安装 Ollama：改写官方 install.sh 走本地安装包、配置 systemd 开机自启，或者直接用 Docker 一条命令跑起来。</summary>
+  </entry>
+</feed>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ollama 离线安装：systemd 服务与 Docker 两种方式 · Miss001</title>
+<meta name="description" content="在无法直连外网的 Linux 服务器上安装 Ollama：改写官方 install.sh 走本地安装包、配置 systemd 开机自启，或者直接用 Docker 一条命令跑起来。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta property="og:title" content="Ollama 离线安装：systemd 服务与 Docker 两种方式 · Miss001">
+<meta property="og:description" content="在无法直连外网的 Linux 服务器上安装 Ollama：改写官方 install.sh 走本地安装包、配置 systemd 开机自启，或者直接用 Docker 一条命令跑起来。">
+<meta property="og:url" content="https://miss001.github.io/posts/ollama-offline-install/">
+<link rel="canonical" href="https://miss001.github.io/posts/ollama-offline-install/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/highlight.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/"><span class="logo">M</span><span class="brand-text">Miss001<small>的技术笔记</small></span></a>
+    <nav class="nav"><a href="/">首页</a><a href="/tags/">标签</a><a href="/about/">关于</a></nav>
+    <div class="actions">
+      <button class="icon-btn" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button class="icon-btn" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><span class="i-sun"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="i-moon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span></button>
+    </div>
+  </div>
+</header>
+<main class="container main">
+<div class="post-layout">
+<article class="post">
+  <header class="post-header">
+    <div class="tags"><a class="tag" href="/tags/ollama/">#Ollama</a><a class="tag" href="/tags/llm/">#大模型</a><a class="tag" href="/tags/offline/">#离线部署</a><a class="tag" href="/tags/docker/">#Docker</a></div>
+    <h1>Ollama 离线安装：systemd 服务与 Docker 两种方式</h1>
+    <div class="post-meta"><time datetime="2026-10-06">2026 年 10 月 6 日</time><span>·</span><span>2 分钟阅读</span><span>·</span><span>宇宙超级无敌美少女</span></div>
+  </header>
+  <div class="prose">
+<p>内网服务器经常无法直接访问 <code>ollama.com</code>，官方一键脚本会卡在下载这一步。本文记录两种安装方式：<strong>改写安装脚本离线安装（systemd 托管）</strong>，以及 <strong>Docker 部署</strong>。</p>
+<h2 id="systemd">方式一：离线安装 + systemd<a class="headerlink" href="#systemd" title="本节链接">#</a></h2>
+<h3 id="1">1. 下载安装包<a class="headerlink" href="#1" title="本节链接">#</a></h3>
+<p>到 GitHub Releases 页面下载对应架构的安装包（如 <code>ollama-linux-amd64.tgz</code>），上传到服务器：</p>
+<p><a href="https://github.com/ollama/ollama/releases">https://github.com/ollama/ollama/releases</a></p>
+<h3 id="2">2. 下载安装脚本<a class="headerlink" href="#2" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://ollama.com/install.sh
+</code></pre></div>
+
+<h3 id="3">3. 修改安装脚本<a class="headerlink" href="#3" title="本节链接">#</a></h3>
+<p>用 <code>vi install.sh</code> 打开脚本，找到在线下载并解压的这段：</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>--fail<span class="w"> </span>--show-error<span class="w"> </span>--location<span class="w"> </span>--progress-bar<span class="w"> </span><span class="se">\</span>
+<span class="w">            </span><span class="s2">"https://ollama.com/download/ollama-linux-</span><span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span><span class="s2">.tgz</span><span class="si">${</span><span class="nv">VER_PARAM</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">            </span><span class="nv">$SUDO</span><span class="w"> </span>tar<span class="w"> </span>-xzf<span class="w"> </span>-<span class="w"> </span>-C<span class="w"> </span><span class="s2">"</span><span class="nv">$OLLAMA_INSTALL_DIR</span><span class="s2">"</span>
+</code></pre></div>
+
+<p>改为直接解压本地安装包（脚本里其他 <code>curl</code> 下载的地方也按同样思路修改）：</p>
+<div class="highlight"><pre><span></span><code><span class="nv">$SUDO</span><span class="w"> </span>tar<span class="w"> </span>-xzf<span class="w"> </span>ollama-linux-<span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span>.tgz<span class="w"> </span>-C<span class="w"> </span><span class="s2">"</span><span class="nv">$OLLAMA_INSTALL_DIR</span><span class="s2">"</span>
+</code></pre></div>
+
+<h3 id="4">4. 执行安装<a class="headerlink" href="#4" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>bash<span class="w"> </span>install.sh
+</code></pre></div>
+
+<h3 id="5">5. 创建用户并授权<a class="headerlink" href="#5" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>useradd<span class="w"> </span>-r<span class="w"> </span>-s<span class="w"> </span>/bin/false<span class="w"> </span>-U<span class="w"> </span>-m<span class="w"> </span>-d<span class="w"> </span>/usr/share/ollama<span class="w"> </span>ollama
+sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>ollama<span class="w"> </span><span class="k">$(</span>whoami<span class="k">)</span>
+</code></pre></div>
+
+<h3 id="6-systemd">6. 创建 systemd 配置文件<a class="headerlink" href="#6-systemd" title="本节链接">#</a></h3>
+<p><code>vi /etc/systemd/system/ollama.service</code>：</p>
+<div class="highlight"><pre><span></span><code><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">Ollama Service</span>
+<span class="na">After</span><span class="o">=</span><span class="s">network-online.target</span>
+
+<span class="k">[Service]</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/bin/ollama serve</span>
+<span class="na">User</span><span class="o">=</span><span class="s">ollama</span>
+<span class="na">Group</span><span class="o">=</span><span class="s">ollama</span>
+<span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
+<span class="na">RestartSec</span><span class="o">=</span><span class="s">3</span>
+<span class="na">Environment</span><span class="o">=</span><span class="s">"OLLAMA_HOST=0.0.0.0:11434"</span>
+<span class="na">Environment</span><span class="o">=</span><span class="s">"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin"</span>
+
+<span class="k">[Install]</span>
+<span class="na">WantedBy</span><span class="o">=</span><span class="s">default.target</span>
+</code></pre></div>
+
+<blockquote>
+<p><code>OLLAMA_HOST=0.0.0.0:11434</code> 让服务监听所有网卡，其他机器（比如 Dify）才能访问到。</p>
+</blockquote>
+<h3 id="7">7. 启动服务<a class="headerlink" href="#7" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># 加载配置</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+<span class="c1"># 设置开机启动</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>ollama
+<span class="c1"># 启动 ollama 服务</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>ollama
+</code></pre></div>
+
+<h2 id="docker">方式二：Docker 部署<a class="headerlink" href="#docker" title="本节链接">#</a></h2>
+<p>如果服务器上已经有 Docker，这种方式最省事：</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>pull<span class="w"> </span>ollama/ollama
+
+docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>ollama<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-p<span class="w"> </span><span class="m">11434</span>:11434<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/opt/ollama:/root/.ollama<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">OLLAMA_HOST</span><span class="o">=</span><span class="m">0</span>.0.0.0:11434<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>ollama/ollama
+</code></pre></div>
+
+<p>模型数据挂载在宿主机的 <code>/opt/ollama</code>，容器重建后模型不会丢。之后可以用 Modelfile 导入本地模型：</p>
+<div class="highlight"><pre><span></span><code>ollama<span class="w"> </span>create<span class="w"> </span>qwen2.5-3b<span class="w"> </span>-f<span class="w"> </span>Modelfile
+</code></pre></div>
+
+<p>Modelfile 怎么写，见下一篇<a href="/posts/ollama-qwen25-gguf/">《Ollama 导入本地 GGUF 模型：以 Qwen2.5-3B 为例》</a>。</p>
+<h2 id="_1">参考链接<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<ol>
+<li><a href="https://yelog.org/2024/10/10/install-ollama-offline/">https://yelog.org/2024/10/10/install-ollama-offline/</a></li>
+<li><a href="https://blog.csdn.net/sunyuhua_keyboard/article/details/144692663">https://blog.csdn.net/sunyuhua_keyboard/article/details/144692663</a></li>
+</ol>
+  </div>
+  <div class="source-note">📒 本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/ai/tree/main/ollama">Miss001/ai · ollama</a>，排版有调整，技术内容保持原样。</div>
+  <nav class="post-nav"><span></span><a class="next" href="/posts/ollama-qwen25-gguf/"><small>下一篇</small>Ollama 导入本地 GGUF 模型：以 Qwen2.5-3B 为例</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner"><h3>目录</h3><ul><li><a href="#systemd">方式一：离线安装 + systemd</a><ul><li><a href="#1">1. 下载安装包</a></li><li><a href="#2">2. 下载安装脚本</a></li><li><a href="#3">3. 修改安装脚本</a></li><li><a href="#4">4. 执行安装</a></li><li><a href="#5">5. 创建用户并授权</a></li><li><a href="#6-systemd">6. 创建 systemd 配置文件</a></li><li><a href="#7">7. 启动服务</a></li></ul></li><li><a href="#docker">方式二：Docker 部署</a></li><li><a href="#_1">参考链接</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p class="motto">「从未抵达，一直在路上」</p>
+    <p>© 2026 宇宙超级无敌美少女 · <a href="https://github.com/Miss001">GitHub</a> · <a href="mailto:522160919@qq.com">522160919@qq.com</a> · <a href="/feed.xml">RSS</a></p>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js"></script>
+</body>
+</html>

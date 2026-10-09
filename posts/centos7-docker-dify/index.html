@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify · Miss001</title>
+<meta name="description" content="CentOS 7 停止维护后官方源不好用了：换成阿里云的 yum 源和 docker-ce 源，安装指定版本 Docker；再拉取 Dify 源码，一条 docker compose 命令启动 Dify。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta property="og:title" content="CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify · Miss001">
+<meta property="og:description" content="CentOS 7 停止维护后官方源不好用了：换成阿里云的 yum 源和 docker-ce 源，安装指定版本 Docker；再拉取 Dify 源码，一条 docker compose 命令启动 Dify。">
+<meta property="og:url" content="https://miss001.github.io/posts/centos7-docker-dify/">
+<link rel="canonical" href="https://miss001.github.io/posts/centos7-docker-dify/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/highlight.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/"><span class="logo">M</span><span class="brand-text">Miss001<small>的技术笔记</small></span></a>
+    <nav class="nav"><a href="/">首页</a><a href="/tags/">标签</a><a href="/about/">关于</a></nav>
+    <div class="actions">
+      <button class="icon-btn" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button class="icon-btn" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><span class="i-sun"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="i-moon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span></button>
+    </div>
+  </div>
+</header>
+<main class="container main">
+<div class="post-layout">
+<article class="post">
+  <header class="post-header">
+    <div class="tags"><a class="tag" href="/tags/docker/">#Docker</a><a class="tag" href="/tags/dify/">#Dify</a><a class="tag" href="/tags/centos/">#CentOS</a><a class="tag" href="/tags/llm/">#大模型</a></div>
+    <h1>CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify</h1>
+    <div class="post-meta"><time datetime="2026-10-08">2026 年 10 月 8 日</time><span>·</span><span>3 分钟阅读</span><span>·</span><span>宇宙超级无敌美少女</span></div>
+  </header>
+  <div class="prose">
+<p>CentOS 7 已经停止维护，默认的 yum 源基本不可用。这篇先把 yum 源和 docker-ce 源换成阿里云镜像，装好 Docker，再在上面部署 <a href="https://github.com/langgenius/dify">Dify</a>。Dify 可以接入<a href="/posts/ollama-qwen25-gguf/">上一篇</a>用 Ollama 部署的本地模型。</p>
+<h2 id="docker">一、安装 Docker<a class="headerlink" href="#docker" title="本节链接">#</a></h2>
+<h3 id="1-yum-utils">1. 安装 yum-utils<a class="headerlink" href="#1-yum-utils" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>yum-utils
+</code></pre></div>
+
+<h3 id="2-docker-cerepo">2. 配置 docker-ce.repo<a class="headerlink" href="#2-docker-cerepo" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>wget<span class="w"> </span>-O<span class="w"> </span>/etc/yum.repos.d/docker-ce.repo<span class="w"> </span>https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+</code></pre></div>
+
+<h3 id="3-centos-baserepo">3. 配置 CentOS-Base.repo<a class="headerlink" href="#3-centos-baserepo" title="本节链接">#</a></h3>
+<p><code>vi /etc/yum.repos.d/CentOS-Base.repo</code>，替换为阿里云镜像：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># CentOS-Base.repo</span>
+<span class="c1">#</span>
+<span class="c1"># The mirror system uses the connecting IP address of the client and the</span>
+<span class="c1"># update status of each mirror to pick mirrors that are updated to and</span>
+<span class="c1"># geographically close to the client.  You should use this for CentOS updates</span>
+<span class="c1"># unless you are manually picking other mirrors.</span>
+<span class="c1">#</span>
+<span class="c1"># If the mirrorlist= does not work for you, as a fall back you can try the</span>
+<span class="c1"># remarked out baseurl= line instead.</span>
+
+<span class="k">[base]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-$releasever - Base - mirrors.aliyun.com</span>
+<span class="na">failovermethod</span><span class="o">=</span><span class="s">priority</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/$releasever/os/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.aliyuncs.com/centos/$releasever/os/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.cloud.aliyuncs.com/centos/$releasever/os/$basearch/</span>
+<span class="na">gpgcheck</span><span class="o">=</span><span class="s">1</span>
+<span class="na">gpgkey</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-7</span>
+
+<span class="c1">#released updates</span>
+<span class="k">[updates]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-$releasever - Updates - mirrors.aliyun.com</span>
+<span class="na">failovermethod</span><span class="o">=</span><span class="s">priority</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/$releasever/updates/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.aliyuncs.com/centos/$releasever/updates/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.cloud.aliyuncs.com/centos/$releasever/updates/$basearch/</span>
+<span class="na">gpgcheck</span><span class="o">=</span><span class="s">1</span>
+<span class="na">gpgkey</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-7</span>
+
+<span class="c1">#additional packages that may be useful</span>
+<span class="k">[extras]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-$releasever - Extras - mirrors.aliyun.com</span>
+<span class="na">failovermethod</span><span class="o">=</span><span class="s">priority</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/$releasever/extras/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.aliyuncs.com/centos/$releasever/extras/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.cloud.aliyuncs.com/centos/$releasever/extras/$basearch/</span>
+<span class="na">gpgcheck</span><span class="o">=</span><span class="s">1</span>
+<span class="na">gpgkey</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-7</span>
+
+<span class="c1">#additional packages that extend functionality of existing packages</span>
+<span class="k">[centosplus]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-$releasever - Plus - mirrors.aliyun.com</span>
+<span class="na">failovermethod</span><span class="o">=</span><span class="s">priority</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/$releasever/centosplus/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.aliyuncs.com/centos/$releasever/centosplus/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.cloud.aliyuncs.com/centos/$releasever/centosplus/$basearch/</span>
+<span class="na">gpgcheck</span><span class="o">=</span><span class="s">1</span>
+<span class="na">enabled</span><span class="o">=</span><span class="s">0</span>
+<span class="na">gpgkey</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-7</span>
+
+<span class="c1">#contrib - packages by Centos Users</span>
+<span class="k">[contrib]</span>
+<span class="na">name</span><span class="o">=</span><span class="s">CentOS-$releasever - Contrib - mirrors.aliyun.com</span>
+<span class="na">failovermethod</span><span class="o">=</span><span class="s">priority</span>
+<span class="na">baseurl</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/$releasever/contrib/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.aliyuncs.com/centos/$releasever/contrib/$basearch/</span>
+<span class="w">        </span><span class="na">http</span><span class="o">:</span><span class="s">//mirrors.cloud.aliyuncs.com/centos/$releasever/contrib/$basearch/</span>
+<span class="na">gpgcheck</span><span class="o">=</span><span class="s">1</span>
+<span class="na">enabled</span><span class="o">=</span><span class="s">0</span>
+<span class="na">gpgkey</span><span class="o">=</span><span class="s">http://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-7</span>
+</code></pre></div>
+
+<p>更新 yum 缓存：</p>
+<div class="highlight"><pre><span></span><code>yum<span class="w"> </span>clean<span class="w"> </span>all
+yum<span class="w"> </span>makecache
+</code></pre></div>
+
+<h3 id="4">4. 查看可安装的版本<a class="headerlink" href="#4" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>yum<span class="w"> </span>list<span class="w"> </span>docker-ce<span class="w"> </span>--showduplicates<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-r
+</code></pre></div>
+
+<h3 id="5-docker">5. 安装指定版本的 Docker<a class="headerlink" href="#5-docker" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>yum<span class="w"> </span>-y<span class="w"> </span>install<span class="w"> </span>docker-ce-20.10.0<span class="w"> </span>docker-ce-cli-20.10.0<span class="w"> </span>containerd.io
+<span class="c1"># 安装最新版（含 buildx 和 compose 插件）：</span>
+<span class="c1"># sudo yum -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin</span>
+</code></pre></div>
+
+<blockquote>
+<p>后面部署 Dify 要用 <code>docker compose</code> 命令，需要装上 <code>docker-compose-plugin</code>。</p>
+</blockquote>
+<h3 id="6-docker">6. 启动 Docker<a class="headerlink" href="#6-docker" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>docker
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>docker
+</code></pre></div>
+
+<h2 id="dify">二、部署 Dify<a class="headerlink" href="#dify" title="本节链接">#</a></h2>
+<h3 id="1">1. 下载源码<a class="headerlink" href="#1" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/langgenius/dify.git
+</code></pre></div>
+
+<h3 id="2">2. 替换镜像源<a class="headerlink" href="#2" title="本节链接">#</a></h3>
+<p>国内拉取 Docker Hub 镜像经常失败，可以把 <code>docker/docker-compose.yaml</code> 里的镜像地址替换成国内镜像。镜像地址可以在这里查：</p>
+<p><a href="https://docker.aityp.com/">https://docker.aityp.com/</a></p>
+<h3 id="3">3. 启动<a class="headerlink" href="#3" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>dify
+<span class="nb">cd</span><span class="w"> </span>docker
+cp<span class="w"> </span>.env.example<span class="w"> </span>.env
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+
+<p>启动后用浏览器访问服务器地址，按提示初始化管理员账号。之后在「设置 → 模型供应商」里添加 Ollama，就能用上本地模型了。</p>
+  </div>
+  <div class="source-note">📒 本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/docker/blob/main/部署/deploy-centos7.9.md">Miss001/docker · 部署/deploy-centos7.9.md，Miss001/ai · dify/部署说明.md</a>，排版有调整，技术内容保持原样。</div>
+  <nav class="post-nav"><a class="prev" href="/posts/ollama-qwen25-gguf/"><small>上一篇</small>Ollama 导入本地 GGUF 模型：以 Qwen2.5-3B 为例</a><a class="next" href="/posts/conda-offline-migration/"><small>下一篇</small>Conda 环境离线安装与迁移：conda-pack 打包到内网服务器</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner"><h3>目录</h3><ul><li><a href="#docker">一、安装 Docker</a><ul><li><a href="#1-yum-utils">1. 安装 yum-utils</a></li><li><a href="#2-docker-cerepo">2. 配置 docker-ce.repo</a></li><li><a href="#3-centos-baserepo">3. 配置 CentOS-Base.repo</a></li><li><a href="#4">4. 查看可安装的版本</a></li><li><a href="#5-docker">5. 安装指定版本的 Docker</a></li><li><a href="#6-docker">6. 启动 Docker</a></li></ul></li><li><a href="#dify">二、部署 Dify</a><ul><li><a href="#1">1. 下载源码</a></li><li><a href="#2">2. 替换镜像源</a></li><li><a href="#3">3. 启动</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p class="motto">「从未抵达，一直在路上」</p>
+    <p>© 2026 宇宙超级无敌美少女 · <a href="https://github.com/Miss001">GitHub</a> · <a href="mailto:522160919@qq.com">522160919@qq.com</a> · <a href="/feed.xml">RSS</a></p>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js"></script>
+</body>
+</html>
