@@ -133,8 +133,8 @@ def layout(title, body, active="", desc=None, path="/"):
 <title>{e(full_title)}</title>
 <meta name="description" content="{e(desc)}">
 <meta name="author" content="{SITE['author']}">
-<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1011" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="{e(full_title)}">
 <meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{SITE['url']}{path}">
@@ -144,12 +144,13 @@ def layout(title, body, active="", desc=None, path="/"):
 <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="alternate" type="application/atom+xml" title="{SITE['title']}" href="/feed.xml">
-<script>(function(){{try{{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}}catch(e){{}}}})();</script>
+<script>(function(){{try{{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}}catch(e){{}}document.documentElement.classList.add('js');}})();</script>
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_V}">
 <link rel="stylesheet" href="/assets/highlight.css?v={ASSET_V}">
 </head>
 <body>
 <div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="progress" id="progress" aria-hidden="true"></div>
 <nav class="nav glass" aria-label="主导航">
   <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>{SITE['short']}</span></a>
   {nav_html}
@@ -269,10 +270,25 @@ def clean_output():
         (ROOT / name).unlink(missing_ok=True)
 
 
+def avatar_inline(size, cls="avatar"):
+    """内联头像 SVG（首页 / 关于页），以便给眼睛和嫩芽加轻微动画。"""
+    svg = (ROOT / "assets" / "avatar.svg").read_text(encoding="utf-8")
+    svg = re.sub(r"<title>.*?</title>\s*", "", svg)
+    svg = re.sub(r"<!--.*?-->\s*", "", svg)
+    svg = svg.replace('role="img" aria-label="小数据库角色：会聊天的 Agent，手拿画笔"',
+                      f'role="img" aria-label="头像：小库库" class="{cls}" width="{size}" height="{size}"')
+    # 嫩芽：从茎到两片叶子
+    svg = re.sub(r'(<path d="M80 42 C80 34.*?<path d="M80 26 C88[^>]*/>)', r'<g class="sprout">\1</g>', svg, flags=re.S)
+    # 眼睛：两只眼和高光
+    svg = re.sub(r'(<ellipse cx="66" cy="94".*?<circle cx="95.8"[^>]*/>)', r'<g class="eyes">\1</g>', svg, flags=re.S)
+    return svg
+
+
 def role_tile(c, count, href=True):
     status = f"{count} 篇文章" if count else "即将更新"
     tag = "a" if href else "div"
     return f"""<{tag} class="tile glass t-role c-{c['color']}" href="/categories/{c['slug']}/">
+  <span class="tile-art" aria-hidden="true"></span>
   <span class="ri">{ICONS[c['slug']]}</span>
   <h3>{c['name']}</h3>
   <p>{c['desc']}</p>
@@ -340,16 +356,18 @@ def main():
 
     # ---------- 首页 ----------
     latest = posts[0]
-    home = f"""<section class="bento">
-  <div class="tile glass t-intro">
-    <div class="intro-top">
-      <img class="avatar" src="/assets/avatar.svg" alt="头像：小库库" width="104" height="104">
-      <div><h1>{SITE['author']}</h1>{roles_line()}</div>
+    home = f"""<section class="hero" id="hero">
+  <div class="hero-bg" aria-hidden="true"><div class="aurora"><i></i><i></i><i></i></div><canvas class="hero-canvas" id="hero-canvas"></canvas></div>
+  <div class="hero-inner">
+    <div class="hero-id">
+      <span class="avatar-frame">{avatar_inline(72)}</span>
+      {roles_line()}
     </div>
+    <h1 class="hero-title">{SITE['author']}</h1>
     <div class="intro-stats">
-      <div><b>{len(posts)}</b><span>篇文章</span></div>
-      <div><b>{len(CATEGORIES)}</b><span>个分类</span></div>
-      <div><b>{len(tags)}</b><span>个标签</span></div>
+      <div><b data-count="{len(posts)}">{len(posts)}</b><span>篇文章</span></div>
+      <div><b data-count="{len(CATEGORIES)}">{len(CATEGORIES)}</b><span>个分类</span></div>
+      <div><b data-count="{len(tags)}">{len(tags)}</b><span>个标签</span></div>
     </div>
     <div class="intro-actions">
       <a class="pill dark" href="#posts">读读文章</a>
@@ -357,30 +375,28 @@ def main():
       <a class="pill" href="{SITE['github']}">{ICONS['github']}GitHub</a>
     </div>
   </div>
+</section>
+<section class="bento">
   <a class="tile glass t-latest" href="{latest['url']}">
     <span class="badge">最新文章</span>
-    <svg class="art" viewBox="0 0 190 150" fill="none" aria-hidden="true">
-      <rect x="18" y="40" width="70" height="56" rx="12" fill="var(--sage-soft)" stroke="var(--sage)" stroke-width="2"/>
-      <path d="M30 58h46M30 70h30M30 82h38" stroke="var(--sage)" stroke-width="3" stroke-linecap="round"/>
-      <path d="M94 68h34" stroke="var(--peach)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 7"/>
-      <path d="M124 60l10 8-10 8" stroke="var(--peach)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <ellipse cx="160" cy="44" rx="20" ry="7" fill="var(--sky-soft)" stroke="var(--sky)" stroke-width="2"/>
-      <path d="M140 44v46c0 4 9 7 20 7s20-3 20-7V44" stroke="var(--sky)" stroke-width="2" fill="var(--sky-soft)"/>
-      <path d="M140 66c0 4 9 7 20 7s20-3 20-7" stroke="var(--sky)" stroke-width="2"/>
+    <svg class="art" viewBox="0 0 240 240" fill="none" aria-hidden="true">
+      <g stroke="currentColor" stroke-width=".8">{''.join(f'<circle cx="120" cy="120" r="{r}" opacity="{0.9 - r/140:.2f}"/>' for r in range(18, 120, 14))}</g>
+      <path d="M0 160 C40 150 70 96 120 104 S200 70 240 40" stroke="var(--accent)" stroke-width="1.4"/>
+      <circle cx="120" cy="104" r="3.5" fill="var(--accent)"/>
     </svg>
     <div class="latest-cat">{CAT[latest['category']]['name']}</div>
     <h2>{e(latest['title'])}</h2>
     <p>{e(latest['summary'])}</p>
     <div class="meta"><span>{latest['d'].month} 月 {latest['d'].day} 日</span><span>·</span><span>{latest['minutes']} 分钟</span><span class="go">{ICONS['arrow']}</span></div>
   </a>
-  {''.join(role_tile(c, len(by_cat[c['slug']])) for c in CATEGORIES)}
-  <div class="tile glass t-stack">{skills_html()}</div>
   <div class="tile glass t-contact">
     <div class="eyebrow">联系我</div>
     <a href="mailto:{SITE['email']}"><span class="ic c-sky">{ICONS['mail']}</span>{SITE['email']}</a>
     <a href="{SITE['github']}"><span class="ic c-peach">{ICONS['github']}</span>github.com/Miss001</a>
     <a href="/feed.xml"><span class="ic c-sage">{ICONS['rss']}</span>RSS 订阅</a>
   </div>
+  {''.join(role_tile(c, len(by_cat[c['slug']])) for c in CATEGORIES)}
+  <div class="tile glass t-stack">{skills_html()}</div>
 </section>
 <div class="sec-head" id="posts"><h2>最新文章</h2>{chips(limit=HOME_TAGS)}</div>
 {post_list(posts[:HOME_LATEST])}
@@ -469,7 +485,7 @@ def main():
     # ---------- 关于 ----------
     about_md, _ = md_render((SRC / "about.md").read_text(encoding="utf-8"))
     about = f"""<section class="glass about-hero">
-  <img class="avatar" src="/assets/avatar.svg" alt="头像：小库库" width="132" height="132">
+  <span class="avatar-frame">{avatar_inline(96)}</span>
   <div><h1>{SITE['author']}</h1>{roles_line()}
     <div class="intro-actions"><a class="pill dark" href="mailto:{SITE['email']}">{ICONS['mail']}{SITE['email']}</a><a class="pill" href="{SITE['github']}">{ICONS['github']}GitHub</a></div>
   </div>
