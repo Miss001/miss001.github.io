@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openGauss 迁移转换：oracle至opengauss · Miss001</title>
+<meta name="description" content="要点：语法差异转换、迁移工具、ora2og、增量迁移。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="openGauss 迁移转换：oracle至opengauss · Miss001">
+<meta property="og:description" content="要点：语法差异转换、迁移工具、ora2og、增量迁移。">
+<meta property="og:url" content="https://miss001.github.io/posts/opengauss-qian-yi-zhuan-huan-oracle-zhi-opengauss/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/opengauss-qian-yi-zhuan-huan-oracle-zhi-opengauss/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 8 月 14 日</span><span>·</span><span>10 分钟阅读</span></div>
+    <h1>openGauss 迁移转换：oracle至opengauss</h1>
+    <p class="post-summary">要点：语法差异转换、迁移工具、ora2og、增量迁移。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/opengauss/">openGauss</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">语法差异转换<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>opengauss6.0.0(oracle兼容环境)</th>
+<th>oracle11</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rowid</td>
+<td>无</td>
+<td>rowid</td>
+</tr>
+<tr>
+<td>&gt;= ,&lt;=</td>
+<td>不允许包含空格</td>
+<td>可包含空格，如（&gt; =,&lt; =）</td>
+</tr>
+<tr>
+<td>dual</td>
+<td>select 1</td>
+<td>select 1 from DUAL</td>
+</tr>
+<tr>
+<td>rownum</td>
+<td>SELECT rownum,a.* FROM test a;<br/>SELECT * FROM test  WHERE rownum&lt;=2;</td>
+<td>SELECT rownum,a.* FROM test a;<br/>SELECT * FROM test  WHERE rownum &lt; =2 ;</td>
+</tr>
+<tr>
+<td>sys_guid</td>
+<td>无</td>
+<td>select sys_guid() from dual</td>
+</tr>
+<tr>
+<td>nvl</td>
+<td>NVL(NULL,'1')</td>
+<td>NVL(NULL,'1')</td>
+</tr>
+<tr>
+<td>instr</td>
+<td>INSTR('APP', 'P',1,1)</td>
+<td>INSTR('APP', 'P',1,1)</td>
+</tr>
+<tr>
+<td>decode</td>
+<td>SELECT<br/>  DECODE(id,1,'Pending',2,'Paid',3 ,'Shipped','Unknown')as name<br/>FROM test</td>
+<td>SELECT<br/>  DECODE(id,1,'Pending',2,'Paid',3 ,'Shipped','Unknown')as name<br/>FROM test</td>
+</tr>
+<tr>
+<td>syddate</td>
+<td>SYSDATE</td>
+<td>SYSDATE</td>
+</tr>
+<tr>
+<td>trunc(date)</td>
+<td>TRUNC(sysdate)</td>
+<td>TRUNC(sysdate)</td>
+</tr>
+<tr>
+<td>months_between</td>
+<td>SELECT EXTRACT(YEAR FROM AGE('2024-01-17 14:45:30'::TIMESTAMP, '2023-10-01 00:00:00'::TIMESTAMP)) * 12 +<br/>       EXTRACT(MONTH FROM AGE('2024-01-17 14:45:30'::TIMESTAMP, '2023-10-01 00:00:00'::TIMESTAMP))+<br/>       EXTRACT(DAY FROM AGE('2024-01-17 14:45:30'::TIMESTAMP, '2023-10-01 00:00:00'::TIMESTAMP)) /30<br/>       AS months_difference;</td>
+<td>select MONTHS_BETWEEN(to_date('2024-01-17 14:45:30','yyyy-mm-dd hh24:mi:ss'),<br/>                      to_date('2023-10-01 00:00:00','yyyy-mm-dd hh24:mi:ss')) <br/>  from dual</td>
+</tr>
+<tr>
+<td>add_months</td>
+<td>select ADD_MONTHS(sysdate, 1)</td>
+<td>select ADD_MONTHS(sysdate, 1) from dual</td>
+</tr>
+<tr>
+<td>last_day</td>
+<td>select LAST_DAY(trunc(sysdate))</td>
+<td>select LAST_DAY(trunc(sysdate)) from dual</td>
+</tr>
+<tr>
+<td>日期相减（天）</td>
+<td>select extract(EPOCH  from sysdate - to_date('2023-01-01','yyyy-mm-dd'))/86400</td>
+<td>select sysdate - to_date('2023-01-01','yyyy-mm-dd') from dual</td>
+</tr>
+<tr>
+<td>时间加减（天）</td>
+<td>select sysdate+1</td>
+<td>select sysdate+1 from dual</td>
+</tr>
+<tr>
+<td>chr(0)</td>
+<td>读取为NULL字符</td>
+<td>读取为空字符(chr(0))</td>
+</tr>
+<tr>
+<td>空字符串（''）</td>
+<td>读取为 NULL</td>
+<td>读取为 NULL</td>
+</tr>
+<tr>
+<td>尾部空格字符串（' '）</td>
+<td>读取为空格字符串（' '）</td>
+<td>读取为空格字符串（' '）</td>
+</tr>
+<tr>
+<td>NULL值与非NULL值字符拼接</td>
+<td>结果为：非NULL值</td>
+<td>结果为：非NULL值</td>
+</tr>
+<tr>
+<td>递归查询</td>
+<td>select id, parent_id ,level as recursion_level<br/>from tmp3  start with parent_id IS NULL<br/>  connect by prior id = parent_id</td>
+<td>select id, parent_id ,level as recursion_level<br/>from tmp3  start with parent_id IS NULL<br/>  connect by prior id = parent_id</td>
+</tr>
+<tr>
+<td>分层查询</td>
+<td>SELECT "DATE"<br/>  FROM generate_series(timestamp '2010-01-01',<br/>                       timestamp '2010-02-01',<br/>                       interval '1 day') s("DATE");</td>
+<td>SELECT to_date('2010-01-01','yyyy-mm-dd') + level - 1<br/>FROM dual<br/>CONNECT BY LEVEL &lt;= to_date('2010-02-01','yyyy-mm-dd') - to_date('2010-01-01','yyyy-mm-dd') + 1;</td>
+</tr>
+<tr>
+<td>(+)进行外连接</td>
+<td>SELECT *<br/>FROM<br/>  tmp1 a,<br/>  tmp2 b<br/>WHERE<br/>  b.id (+)= a.user_id</td>
+<td>SELECT *<br/>FROM<br/>  tmp1 a,<br/>  tmp2 b<br/>WHERE<br/>  b.id (+)= a.user_id</td>
+</tr>
+<tr>
+<td>MERGE 操作</td>
+<td>MERGE INTO users A<br/>USING (<br/>SELECT 'jane_doe' AS username, '111@example.com' AS email, now() AS last_login<br/>)B<br/>ON A.username = B.username<br/>WHEN MATCHED THEN<br/>    UPDATE SET email = B.email, last_login = B.last_login<br/>WHEN NOT MATCHED THEN<br/>    INSERT (username, email, last_login)<br/>        VALUES (B.username, B.email, B.last_login);</td>
+<td>MERGE INTO users A<br/>USING (<br/>    SELECT 'jane_doe' AS username, '111@example.com' AS email, SYSDATE AS last_login<br/>    FROM dual<br/>) B<br/>ON (A.username = B.username)<br/>WHEN MATCHED THEN<br/>    UPDATE SET A.email = B.email, A.last_login = B.last_login<br/>WHEN NOT MATCHED THEN<br/>    INSERT (username, email, last_login)<br/>    VALUES (B.username, B.email, B.last_login);</td>
+</tr>
+<tr>
+<td>多表关联更新</td>
+<td>UPDATE product p<br/>SET (net_price, segment_name)= <br/>     (select t.segment, p.price - p.price * s.discount<br/>           from product_segment s, segment t <br/>           where s.segment=t.segment and p.segment_id = s.id)<br/>WHERE EXISTS(select 1<br/>           from product_segment s, segment t <br/>           where s.segment=t.segment and p.segment_id = s.id)</td>
+<td>UPDATE product p<br/>SET (net_price, segment_name)= <br/>     (select t.segment, p.price - p.price * s.discount<br/>           from product_segment s, segment t <br/>           where s.segment=t.segment and p.segment_id = s.id)<br/>WHERE EXISTS(select 1<br/>           from product_segment s, segment t <br/>           where s.segment=t.segment and p.segment_id = s.id)</td>
+</tr>
+<tr>
+<td>listagg distinct</td>
+<td>with  <br/>t as(  <br/>select 1 as i ,'a' as id  <br/>union ALL  <br/>select 1 as i ,'a' as id  <br/>union ALL  <br/>select null as i,'a' as id  <br/>union ALL  <br/>select 2 as i,'b' as id  <br/>union ALL  <br/>select 3 as i,'b' as id  <br/>union ALL  <br/>select 10 as i,'b' as id  <br/>)     <br/>select listagg(i,',') within group (order by i asc)    <br/>from (select distinct * from t) group by id</td>
+<td>with<br/>t as(<br/>select 1 as i ,'a' as id from dual<br/>union ALL<br/>select 1 as i ,'a' as id from dual<br/>union ALL<br/>select null as i,'a' as id from dual<br/>union ALL<br/>select 2 as i,'b' as id from dual<br/>union ALL<br/>select 3 as i,'b' as id from dual<br/>union ALL<br/>select 10 as i,'b' as id from dual<br/>)<br/>select listagg(i,',') within group (order by i asc) <br/>from (select distinct * from t) group by id</td>
+</tr>
+<tr>
+<td>wm_concat(distinct)</td>
+<td>with<br/>t as(<br/>select 1 as i ,'a' as id<br/>union ALL<br/>select 1 as i ,'a' as id<br/>union ALL<br/>select null as i,'a' as id<br/>union ALL<br/>select 2 as i,'b' as id<br/>union ALL<br/>select 3 as i,'b' as id<br/>union ALL<br/>select 10 as i,'b' as id<br/>)<br/>select string_agg(distinct i::text,',' order by i::text asc )  from t  group by id</td>
+<td>with<br/>t as(<br/>select 1 as i ,'a' as id from dual<br/>union ALL<br/>select 1 as i ,'a' as id from dual<br/>union ALL<br/>select null as i,'a' as id from dual<br/>union ALL<br/>select 2 as i,'b' as id from dual<br/>union ALL<br/>select 3 as i,'b' as id from dual<br/>union ALL<br/>select 10 as i,'b' as id from dual<br/>)<br/>select wm_concat(distinct i) <br/>from t group by id</td>
+</tr>
+<tr>
+<td>nologging</td>
+<td>create unlogged table test1 as<br/>select * from test where rownum&lt;=10</td>
+<td>create table test1 nologging as<br/>select * from test where rownum&lt;=10</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">迁移工具<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<h3 id="ora2og">ora2og<a class="headerlink" href="#ora2og" title="本节链接">#</a></h3>
+<ul>
+<li>原理：基于Ora2Pg开发扩展，通过连接Oracle数据库，自动扫描并提取其中的对象结构及数据，产生SQL脚本，通过手动或自动的方式将其应用到opengauss</li>
+<li>只适合做简单的语法转换对象迁移，对于复杂语法的转换需要人工校验，增量迁移困难</li>
+<li>部分语法实际未转换成opengauss兼容的语法而是postgresql语法</li>
+</ul>
+<h4 id="_3">全量迁移<a class="headerlink" href="#_3" title="本节链接">#</a></h4>
+<p>root用户执行，omm无权限执行perl</p>
+<ul>
+<li>创建迁移项目</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm
+ora2pg<span class="w"> </span>--init_project<span class="w"> </span>ora2og
+</code></pre></div>
+
+<ul>
+<li>修改配置文件<br />
+vi /home/omm/ora2og/config/ora2pg.conf</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">#------------------------------------------------------------------------------</span>
+<span class="c1"># INPUT SECTION (Oracle connection or input file)</span>
+<span class="c1">#------------------------------------------------------------------------------</span>
+<span class="c1"># Set the Oracle home directory</span>
+ORACLE_HOME<span class="w">     </span>/usr/lib/oracle/21/client64
+<span class="c1"># Set Oracle database connection (datasource, user, password)</span>
+ORACLE_DSN<span class="w">      </span>dbi:Oracle:host<span class="o">=</span>&lt;HOST_IP&gt;<span class="p">;</span><span class="nv">sid</span><span class="o">=</span>helowin<span class="p">;</span><span class="nv">port</span><span class="o">=</span><span class="m">1521</span>
+ORACLE_USER<span class="w">     </span>root
+ORACLE_PWD<span class="w">      </span>&lt;PASSWORD&gt;
+<span class="c1"># Trace all to stderr</span>
+DEBUG<span class="w">           </span><span class="m">1</span>
+
+<span class="c1">#------------------------------------------------------------------------------</span>
+<span class="c1"># SCHEMA SECTION (Oracle schema to export and use of schema in PostgreSQL)</span>
+<span class="c1">#------------------------------------------------------------------------------</span>
+<span class="c1"># Export Oracle schema to PostgreSQL schema</span>
+EXPORT_SCHEMA<span class="w">   </span><span class="m">1</span>
+<span class="c1"># Oracle schema/owner to use</span>
+SCHEMA<span class="w">  </span>ROOT
+CREATE_SCHEMA<span class="w">  </span><span class="m">0</span>
+COMPILE_SCHEMA<span class="w">  </span><span class="m">1</span>
+<span class="c1">#PG_SCHEME  test</span>
+
+<span class="c1">#------------------------------------------------------------------------------</span>
+<span class="c1"># OUTPUT SECTION (Control output to file or PostgreSQL database)</span>
+<span class="c1">#------------------------------------------------------------------------------</span>
+PG_DSN<span class="w">          </span>dbi:Pg:dbname<span class="o">=</span>oraclemode_db<span class="p">;</span><span class="nv">host</span><span class="o">=</span>&lt;HOST_IP&gt;<span class="p">;</span><span class="nv">port</span><span class="o">=</span><span class="m">15400</span>
+PG_USER<span class="w">         </span>root
+PG_PWD<span class="w">          </span>&lt;PASSWORD&gt;
+OUTPUT<span class="w">          </span>output.sql
+OUTPUT_DIR<span class="w">      </span>/home/omm/ora2og
+
+<span class="c1">#------------------------------------------------------------------------------</span>
+<span class="c1"># POSTGRESQL FEATURE SECTION (Control which PostgreSQL features are available)</span>
+<span class="c1">#------------------------------------------------------------------------------</span>
+PG_VERSION<span class="w">  </span><span class="m">9</span>.2
+</code></pre></div>
+
+<ul>
+<li>测试连接</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm/ora2og
+ora2pg<span class="w"> </span>-t<span class="w"> </span>SHOW_VERSION<span class="w"> </span>-c<span class="w"> </span>config/ora2pg.conf
+</code></pre></div>
+
+<ul>
+<li>修改导出对象
+cd /home/omm/ora2og<br />
+vi  export_schema.sh</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="na">EXPORT_TYPE</span><span class="o">=</span><span class="s">"SEQUENCE TABLE VIEW TRIGGER FUNCTION PROCEDURE PARTITION"</span>
+<span class="na">SOURCE_TYPE</span><span class="o">=</span><span class="s">"SEQUENCE TABLE VIEW TRIGGER FUNCTION PROCEDURE PARTITION"</span>
+</code></pre></div>
+
+<ul>
+<li>批量导出对象结构:生成的迁移报告在 reports目录下</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm/ora2og
+sh<span class="w"> </span>export_schema.sh
+<span class="c1">#导出序列</span>
+<span class="c1">#ora2pg -p -t SEQUENCE -o sequence.sql -b ./schema/sequences -c ./config/ora2pg.conf</span>
+<span class="c1">#导出表、索引</span>
+<span class="c1">#ora2pg -p -t TABLE -o table.sql -b ./schema/tables -c ./config/ora2pg.conf</span>
+<span class="c1">#导出包</span>
+<span class="c1">#ora2pg -p -t PACKAGE -o package.sql -b ./schema/packages -c ./config/ora2pg.conf</span>
+<span class="c1">#导出视图</span>
+<span class="c1">#ora2pg -p -t VIEW -o view.sql -b ./schema/views -c ./config/ora2pg.conf</span>
+<span class="c1">#导出权限</span>
+<span class="c1">#ora2pg -p -t GRANT -o grant.sql -b ./schema/grants -c ./config/ora2pg.conf</span>
+<span class="c1">#导出触发器</span>
+<span class="c1">#ora2pg -p -t TRIGGER -o trigger.sql -b ./schema/triggers -c ./config/ora2pg.conf</span>
+<span class="c1">#导出函数</span>
+<span class="c1">#ora2pg -p -t FUNCTION -o function.sql -b ./schema/functions -c ./config/ora2pg.conf</span>
+<span class="c1">#导出存储过程</span>
+<span class="c1">#ora2pg -p -t PROCEDURE -o procedure.sql -b ./schema/procedures -c ./config/ora2pg.conf</span>
+<span class="c1">#导出表空间</span>
+<span class="c1">#ora2pg -p -t TABLESPACE -o tablespace.sql -b ./schema/tablespaces -c ./config/ora2pg.conf</span>
+<span class="c1">#导出分区</span>
+<span class="c1">#ora2pg -p -t PARTITION -o partition.sql -b ./schema/partitions -c ./config/ora2pg.conf</span>
+<span class="c1">#导出type</span>
+<span class="c1">#ora2pg -p -t TYPE -o type.sql -b ./schema/types -c ./config/ora2pg.conf</span>
+<span class="c1">#导出物化视图</span>
+<span class="c1">#ora2pg -p -t MVIEW -o mview.sql -b ./schema/mviews -c ./config/ora2pg.conf</span>
+<span class="c1">#导出dblink</span>
+<span class="c1">#ora2pg -p -t DBLINK -o dblink.sql -b ./schema/dblinks -c ./config/ora2pg.conf</span>
+<span class="c1">#导出同义词</span>
+<span class="c1">#ora2pg -p -t SYNONYM -o synonym.sql -b ./schema/synonyms -c ./config/ora2pg.conf</span>
+<span class="c1">#导出字典</span>
+<span class="c1">#ora2pg -p -t DIRECTORY -o directorie.sql -b ./schema/directories -c ./config/ora2pg.conf</span>
+</code></pre></div>
+
+<ul>
+<li>修改import_all.sh 导入参数</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="na">EXPORT_TYPE</span><span class="o">=</span><span class="s">"SEQUENCE TABLE VIEW TRIGGER FUNCTION PROCEDURE PARTITION"</span>
+<span class="na">OPENGAUSS</span><span class="o">=</span><span class="s">1</span>
+</code></pre></div>
+
+<ul>
+<li>批量执行导入对象</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm
+chown<span class="w"> </span>-R<span class="w"> </span>omm:dbgrp<span class="w"> </span>ora2og/
+<span class="c1">#使用omm 运行gsql导入对象</span>
+su<span class="w"> </span>-<span class="w"> </span>omm
+<span class="c1">#此命令会通过交互式按顺序导入表结构索引等，导入数据需要切换用户执行ora2pg</span>
+sh<span class="w"> </span>import_all.sh<span class="w"> </span>-h<span class="w"> </span>&lt;HOST_IP&gt;<span class="w"> </span>-p<span class="w"> </span><span class="m">15400</span><span class="w"> </span>-o<span class="w"> </span>root<span class="w"> </span>-w<span class="w"> </span>&lt;PASSWORD&gt;<span class="w"> </span>-d<span class="w"> </span>oraclemode_db<span class="w"> </span>-n<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-f
+</code></pre></div>
+
+<ul>
+<li>批量导入数据</li>
+</ul>
+<div class="highlight"><pre><span></span><code>ora2pg<span class="w"> </span>-c<span class="w"> </span>config/ora2pg.conf<span class="w"> </span>-t<span class="w"> </span>COPY<span class="w"> </span>--pg_dsn<span class="w"> </span><span class="s2">"dbi:Pg:dbname=oraclemode_db;host=&lt;HOST_IP&gt;;port=15400"</span><span class="w"> </span>--pg_schema<span class="w"> </span>root<span class="w"> </span>--pg_user<span class="w"> </span>root
+</code></pre></div>
+
+<ul>
+<li>单表结构导出至本地文件</li>
+</ul>
+<div class="highlight"><pre><span></span><code>ora2pg<span class="w"> </span>-c<span class="w"> </span>config/ora2pg.conf<span class="w">  </span>-a<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-b<span class="w"> </span>./data<span class="w"> </span>-o<span class="w"> </span>output.sql
+</code></pre></div>
+
+<ul>
+<li>单表结构从本地文件导入数据库</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm
+chown<span class="w"> </span>-R<span class="w"> </span>omm:dbgrp<span class="w"> </span>ora2og/
+su<span class="w"> </span>-<span class="w"> </span>omm
+gsql<span class="w"> </span>--single-transaction<span class="w">  </span>-h<span class="w"> </span>&lt;HOST_IP&gt;<span class="w"> </span>-p<span class="w"> </span><span class="m">15400</span><span class="w"> </span>-U<span class="w"> </span>root<span class="w"> </span>-W<span class="w"> </span>&lt;PASSWORD&gt;<span class="w"> </span>-d<span class="w"> </span>oraclemode_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SET search_path TO test; \i ./data/output.sql"</span>
+</code></pre></div>
+
+<ul>
+<li>单表数据导入数据库</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">#数据(无法导出成文件),-n为oracle的schema,-a 为表名</span>
+ora2pg<span class="w"> </span>-t<span class="w"> </span>COPY<span class="w"> </span>-c<span class="w"> </span>config/ora2pg.conf<span class="w"> </span>-n<span class="w"> </span>root<span class="w"> </span>-a<span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+
+<h2 id="_4">增量迁移<a class="headerlink" href="#_4" title="本节链接">#</a></h2>
+<p>原理：通过表时间字段查询至全量迁移后的变更数据导入<br />
+      ora2pg21.1版本不支持通过--scn 增量迁移数据  </p>
+<ul>
+<li>修改配置文件
+vi  config/ora2pg.conf</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1"># Support for include a WHERE clause filter when dumping the contents</span>
+<span class="c1"># of tables. Value is construct as follow: TABLE_NAME[WHERE_CLAUSE], or</span>
+<span class="c1"># if you have only one where clause for each table just put the where</span>
+<span class="c1"># clause as value. Both are possible too. Here are some examples:</span>
+<span class="c1">#WHERE  1=1 # Apply to all tables</span>
+WHERE<span class="w">   </span>test<span class="o">[</span>id&gt;<span class="o">=</span><span class="m">11</span><span class="o">]</span><span class="w">    </span><span class="c1"># Apply only on table TABLE_TEST</span>
+<span class="c1">#WHERE  TABLE_TEST[ID1='001' OR ID1='002] DATE_CREATE &gt; '2001-01-01' TABLE_INFO[NAME='test']</span>
+<span class="c1"># The last applies two different where clause on tables TABLE_TEST and</span>
+<span class="c1"># TABLE_INFO and a generic where clause on DATE_CREATE to all other tables</span>
+</code></pre></div>
+
+<ul>
+<li>执行迁移</li>
+</ul>
+<div class="highlight"><pre><span></span><code>ora2pg<span class="w">  </span>-t<span class="w"> </span>COPY<span class="w"> </span>-c<span class="w"> </span>config/ora2pg.conf<span class="w"> </span>-n<span class="w"> </span>root<span class="w"> </span>-a<span class="w"> </span><span class="nb">test</span><span class="w"> </span>
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/opengauss/%E8%BF%81%E7%A7%BB%E8%BD%AC%E6%8D%A2/oracle%E8%87%B3opengauss.md">Miss001/data-engineering-notes · database/domestic/opengauss/迁移转换/oracle至opengauss.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/opengauss-qian-yi-zhuan-huan-mysql-zhi-opengauss/"><small>上一篇</small>openGauss 迁移转换：mysql至opengauss</a><a class="glass next" href="/posts/linux-duo-ban-ben-java-kong-zhi-pei-zhi/"><small>下一篇</small>Linux 多版本java控制：配置</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">语法差异转换</a></li><li><a href="#_2">迁移工具</a><ul><li><a href="#ora2og">ora2og</a></li></ul></li><li><a href="#_4">增量迁移</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

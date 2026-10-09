@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL 备份：mysqldump 备份与恢复 · Miss001</title>
+<meta name="description" content="要点：本地备份/恢复、全量备份/恢复、单库备份/恢复、单表备份/恢复、表结构备份/恢复。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MySQL 备份：mysqldump 备份与恢复 · Miss001">
+<meta property="og:description" content="要点：本地备份/恢复、全量备份/恢复、单库备份/恢复、单表备份/恢复、表结构备份/恢复。">
+<meta property="og:url" content="https://miss001.github.io/posts/mysql-bei-fen-mysqldump/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mysql-bei-fen-mysqldump/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 5 月 3 日</span><span>·</span><span>3 分钟阅读</span></div>
+    <h1>MySQL 备份：mysqldump 备份与恢复</h1>
+    <p class="post-summary">要点：本地备份/恢复、全量备份/恢复、单库备份/恢复、单表备份/恢复、表结构备份/恢复。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mysql/">MySQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<p><strong>命令：mysqldump</strong></p>
+<ul>
+<li>
+<p><code>-u=</code>：连接mysql数据库的用户名</p>
+</li>
+<li>
+<p><code>-p=</code>：连接mysql数据库的密码</p>
+</li>
+<li>
+<p><code>-P=</code>：连接mysql数据库的端口</p>
+</li>
+<li>
+<p><code>-h=</code>：连接mysql数据库的IP</p>
+</li>
+<li>
+<p><code>--all-databases</code>：备份所有数据库</p>
+</li>
+<li>
+<p><code>--triggers</code>：备份触发器</p>
+</li>
+<li>
+<p><code>--routines</code>：备份函数</p>
+</li>
+<li>
+<p><code>--events</code>：备份事件</p>
+</li>
+<li>
+<p><code>--flush-logs</code>：刷新日志</p>
+</li>
+<li>
+<p><code>--single-transaction</code>：事务一致</p>
+</li>
+<li>
+<p><code>--master-data=2</code>：增加注释备份所处位移等语句</p>
+</li>
+<li>
+<p><code>set-gtid-purged=OFF</code>：gtid模式下不重新生成gtid</p>
+</li>
+<li>
+<p><code>--databases=</code>：指定需要备份的数据库名</p>
+</li>
+<li>
+<p><code>--tables=</code>：指定需要备份的表名</p>
+</li>
+<li>
+<p><code>-d</code>：只导出结构不导出数据</p>
+</li>
+</ul>
+<h2 id="121">1.2.1 本地备份/恢复<a class="headerlink" href="#121" title="本节链接">#</a></h2>
+<p>服务器：&lt;HOST_IP&gt;:3306 </p>
+<p>本地备份与远程备份无区别，都是通过连接mysql读取数据</p>
+<h3 id="1211">1.2.1.1 全量备份/恢复<a class="headerlink" href="#1211" title="本节链接">#</a></h3>
+<p><strong>备份</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code><span class="c1">#全量备份</span>
+mysqldump<span class="w"> </span>-h&lt;HOST_IP&gt;<span class="w"> </span>-P3306<span class="w"> </span>-uroot<span class="w"> </span>-p&lt;PASSWORD&gt;<span class="w"> </span>--all-databases<span class="w">  </span>--triggers<span class="w"> </span>--routines<span class="w"> </span>--events<span class="w">  </span>--flush-logs<span class="w"> </span>--single-transaction<span class="w"> </span>--master-data<span class="o">=</span><span class="m">2</span><span class="w">  </span>&gt;/opt/backup.sql
+</code></pre></div>
+
+<p><strong>恢复</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code>#恢复全量数据
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt;  &lt;/opt/backup.sql
+或
+source  /opt/backup.sql
+
+#查看当前binlog位置
+less /opt/backup.sql #(CHANGE MASTER TO MASTER_LOG_FILE='mysql-bin.000029', MASTER_LOG_POS=156;)
+
+#拷贝mysql-bin.000029及之后的binlog
+mysqlbinlog --start-position=156  /opt/mysql-bin.000029 &gt; /opt/binlog_bak.sql
+
+#执行sql文件
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt; &lt; /opt/binlog_bak.sql
+</code></pre></div>
+
+<h3 id="1212">1.2.1.2 单库备份/恢复<a class="headerlink" href="#1212" title="本节链接">#</a></h3>
+<p>drop database 备份恢复ceshi库的数据</p>
+<p><strong>建议利用新库恢复后将数据导入原来的库或者全备恢复</strong></p>
+<p><strong>备份</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code><span class="c1">#单库备份</span>
+mysqldump<span class="w"> </span>-h&lt;HOST_IP&gt;<span class="w"> </span>-P3306<span class="w"> </span>-uroot<span class="w"> </span>-p&lt;PASSWORD&gt;<span class="w"> </span>--databases<span class="w"> </span>ceshi<span class="w">  </span>--triggers<span class="w"> </span>--routines<span class="w"> </span>--events<span class="w">  </span>--flush-logs<span class="w"> </span>--single-transaction<span class="w"> </span>--master-data<span class="o">=</span><span class="m">2</span><span class="w">  </span>&gt;/opt/backup.sql
+</code></pre></div>
+
+<p><strong>恢复</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code>#刷新日志
+flush binary logs;
+
+#恢复全量数据
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt; ceshi1 &lt;/opt/backup.sql
+
+#查看当前binlog位置
+less /opt/backup.sql #(CHANGE MASTER TO MASTER_LOG_FILE='mysql-bin.000013', MASTER_LOG_POS=156;)
+
+#拷贝mysql-bin.000013至刷新前的所有binlog文件至备份目录
+cp /var/lib/mysql/mysql-bin.000013  /opt/
+
+#查询drop database 事件的位移
+show binlog events in 'mysql-bin.000013';
+
+#获取需要还原的binlog文件以及开始和结束位置 ，将二进制转为sql文件(此处指定数据库若binlog中包含create table ceshi1.tmp1 as select * from ceshi.tmp1此类sql，导出文件会包含ceshi1.tmp1的建表语句)
+mysqlbinlog --database=ceshi --start-position=156 --stop-position=2287 /opt/mysql-bin.000013&gt; /opt/binlog_bak.sql
+
+#执行sql文件，忽略错误
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt; ceshi -f &lt; /opt/binlog_bak.sql
+</code></pre></div>
+
+<h3 id="1213">1.2.1.3 单表备份/恢复<a class="headerlink" href="#1213" title="本节链接">#</a></h3>
+<p>drop table 备份恢复ceshi1库tmp1的数据</p>
+<p><strong>建议利用新库恢复后将数据导入原来的库或者全备恢复</strong></p>
+<p><strong>备份</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code><span class="c1">#单表备份</span>
+mysqldump<span class="w"> </span>-h&lt;HOST_IP&gt;<span class="w"> </span>-P3306<span class="w"> </span>-uroot<span class="w"> </span>-p&lt;PASSWORD&gt;<span class="w"> </span>--databases<span class="w"> </span>ceshi1<span class="w">  </span>--tables<span class="w"> </span>tmp1<span class="w">  </span>--flush-logs<span class="w"> </span>--single-transaction<span class="w"> </span>--master-data<span class="o">=</span><span class="m">2</span><span class="w">  </span>&gt;/opt/backup.sql
+</code></pre></div>
+
+<p><strong>恢复</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code>#刷新日志
+flush binary logs;
+
+#恢复全量数据
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt; ceshi1 &lt;/opt/backup.sql
+
+#查看当前binlog位置
+less /opt/backup.sql #(CHANGE MASTER TO MASTER_LOG_FILE='mysql-bin.000015', MASTER_LOG_POS=156;)
+
+#拷贝mysql-bin.000015至刷新前的所有binlog文件至备份目录
+cp /var/lib/mysql/mysql-bin.000015  /opt/
+
+#查询drop database 事件的位移
+show binlog events in 'mysql-bin.000015';
+
+#获取需要还原的binlog文件以及开始和结束位置 ，将二进制转为sql文件
+mysqlbinlog --database=ceshi1 --start-position=156 --stop-position=2246  /opt/mysql-bin.000015&gt; /opt/binlog_bak.sql
+
+#创建一个账号只对tmp1表有增删改查的权限
+CREATE USER 'tmp1'@'localhost' IDENTIFIED BY '&amp;lt;PASSWORD&amp;gt;';
+GRANT select, insert, update, delete, alter  ON ceshi1.tmp1 TO 'tmp1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN,REPLICATION_APPLIER  ON *.* TO 'tmp1'@'localhost';
+
+#执行sql文件，忽略错误
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt; ceshi1 -f &lt; /opt/binlog_bak.sql
+</code></pre></div>
+
+<h3 id="1214">1.2.1.4 表结构备份/恢复<a class="headerlink" href="#1214" title="本节链接">#</a></h3>
+<p><strong>备份</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code><span class="c1">#结构备份</span>
+mysqldump<span class="w"> </span>-h&lt;HOST_IP&gt;<span class="w"> </span>-P3306<span class="w"> </span>-uroot<span class="w"> </span>-p&lt;PASSWORD&gt;<span class="w"> </span>-d<span class="w"> </span>ceshi<span class="w">  </span>--flush-logs<span class="w"> </span>--single-transaction<span class="w"> </span>--master-data<span class="o">=</span><span class="m">2</span><span class="w">  </span>&gt;/opt/backup.sql
+</code></pre></div>
+
+<p><strong>恢复</strong></p>
+<p>mysql状态：启动</p>
+<div class="highlight"><pre><span></span><code>#执行sql文件（包含drop、create语句）
+mysql -uroot -p&amp;lt;PASSWORD&amp;gt; ceshi &lt; /opt/backup.sql
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/mysql/%E5%A4%87%E4%BB%BD/mysqldump.md">Miss001/data-engineering-notes · database/mysql/备份/mysqldump.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/opengauss-zhu-bei-fu-zhi-wen-ti-chu-li/"><small>上一篇</small>openGauss 主备复制：问题处理</a><a class="glass next" href="/posts/opengauss-wen-ti-chu-li-wen-ti-chu-li/"><small>下一篇</small>openGauss 问题处理</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#121">1.2.1 本地备份/恢复</a><ul><li><a href="#1211">1.2.1.1 全量备份/恢复</a></li><li><a href="#1212">1.2.1.2 单库备份/恢复</a></li><li><a href="#1213">1.2.1.3 单表备份/恢复</a></li><li><a href="#1214">1.2.1.4 表结构备份/恢复</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

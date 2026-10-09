@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elasticsearch 部署：es安装包部署 · Miss001</title>
+<meta name="description" content="1.下载地址 2.解压 3.创建用户 4.配置 .yml 文件 5.启动 6.重置密码 7.访问 参考连接： https://blog.csdn.net/weixin_541069…">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Elasticsearch 部署：es安装包部署 · Miss001">
+<meta property="og:description" content="1.下载地址 2.解压 3.创建用户 4.配置 .yml 文件 5.启动 6.重置密码 7.访问 参考连接： https://blog.csdn.net/weixin_541069…">
+<meta property="og:url" content="https://miss001.github.io/posts/elasticsearch-bu-shu-es-an-zhuang-bao-bu-shu/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/elasticsearch-bu-shu-es-an-zhuang-bao-bu-shu/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 4 月 19 日</span><span>·</span><span>1 分钟阅读</span></div>
+    <h1>Elasticsearch 部署：es安装包部署</h1>
+    <p class="post-summary">1.下载地址 2.解压 3.创建用户 4.配置 .yml 文件 5.启动 6.重置密码 7.访问 参考连接： https://blog.csdn.net/weixin_541069…</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/bigdata/">大数据</a><a href="/tags/elasticsearch/">Elasticsearch</a></span></div>
+  </header>
+  <div class="glass prose">
+<ul>
+<li>1.下载地址</li>
+</ul>
+<div class="highlight"><pre><span></span><code>wget<span class="w"> </span>https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-8.17.1-linux-x86_64.tar.gz
+</code></pre></div>
+
+<ul>
+<li>2.解压</li>
+</ul>
+<div class="highlight"><pre><span></span><code>tar<span class="w"> </span>-zxvf<span class="w"> </span>elasticsearch-8.17.1-linux-x86_64.tar.gz
+</code></pre></div>
+
+<ul>
+<li>3.创建用户</li>
+</ul>
+<div class="highlight"><pre><span></span><code>useradd<span class="w"> </span>elastic
+chown<span class="w"> </span>-R<span class="w"> </span>elastic:elastic<span class="w"> </span>/opt/elasticsearch-8.17.1
+</code></pre></div>
+
+<ul>
+<li>4.配置 <code>.yml</code> 文件</li>
+</ul>
+<div class="highlight"><pre><span></span><code>cluster.name:<span class="w"> </span>elastic-cluster
+<span class="c1">#</span>
+<span class="c1"># ------------------------------------ Node ------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># Use a descriptive name for the node:</span>
+<span class="c1">#</span>
+node.name:<span class="w"> </span>node-1
+<span class="c1">#</span>
+<span class="c1"># Add custom attributes to the node:</span>
+<span class="c1">#</span>
+node.attr.rack:<span class="w"> </span>r1
+<span class="c1">#</span>
+<span class="c1"># ----------------------------------- Paths ------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># Path to directory where to store the data (separate multiple locations by comma):</span>
+<span class="c1">#</span>
+path.data:<span class="w"> </span>/opt/elasticsearch-8.17.1/data
+<span class="c1">#</span>
+<span class="c1"># Path to log files:</span>
+<span class="c1">#</span>
+path.logs:<span class="w"> </span>/opt/elasticsearch-8.17.1/logs
+<span class="c1"># ----------------------------------- Memory -----------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># Lock the memory on startup:</span>
+<span class="c1">#</span>
+bootstrap.memory_lock:<span class="w"> </span><span class="nb">false</span>
+<span class="c1">#</span>
+<span class="c1"># Make sure that the heap size is set to about half the memory available</span>
+<span class="c1"># on the system and that the owner of the process is allowed to use this</span>
+<span class="c1"># limit.</span>
+<span class="c1">#</span>
+<span class="c1"># Elasticsearch performs poorly when the system is swapping the memory.</span>
+<span class="c1">#</span>
+<span class="c1"># ---------------------------------- Network -----------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># By default Elasticsearch is only accessible on localhost. Set a different</span>
+<span class="c1"># address here to expose this node on the network:</span>
+<span class="c1">#</span>
+network.host:<span class="w"> </span>&lt;HOST_IP&gt;
+<span class="c1">#</span>
+<span class="c1"># By default Elasticsearch listens for HTTP traffic on the first free port it</span>
+<span class="c1"># finds starting at 9200. Set a specific HTTP port here:</span>
+<span class="c1">#</span>
+http.port:<span class="w"> </span><span class="m">9200</span>
+transport.tcp.port:<span class="w"> </span><span class="m">9300</span>
+</code></pre></div>
+
+<ul>
+<li>5.启动</li>
+</ul>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>elastic<span class="w"> </span>-c<span class="s2">"bin/elasticsearch -d"</span><span class="w"> </span>
+</code></pre></div>
+
+<ul>
+<li>6.重置密码</li>
+</ul>
+<div class="highlight"><pre><span></span><code>./bin/elasticsearch-reset-password<span class="w"> </span>-u<span class="w"> </span>elastic<span class="w"> </span>-i
+</code></pre></div>
+
+<ul>
+<li>7.访问</li>
+</ul>
+<div class="highlight"><pre><span></span><code>https://&lt;HOST_IP&gt;:9200/
+</code></pre></div>
+
+<p>参考连接：    <br />
+https://blog.csdn.net/weixin_54106903/article/details/130939114   <br />
+https://cloud.tencent.com/developer/article/2455893</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/bigdata/elasticsearch/%E9%83%A8%E7%BD%B2/es%E5%AE%89%E8%A3%85%E5%8C%85%E9%83%A8%E7%BD%B2.md">Miss001/data-engineering-notes · bigdata/elasticsearch/部署/es安装包部署.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/gaussdb-zhi-shi-jie-gou-ti-xi-jia-gou-shu-cang/"><small>上一篇</small>GaussDB 知识结构：体系架构-数仓</a><a class="glass next" href="/posts/opengauss-zi-dai-ke-hu-duan-gong-ju/"><small>下一篇</small>openGauss：自带客户端工具</a></nav>
+</article>
+<aside class="toc"></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

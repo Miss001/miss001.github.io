@@ -61,7 +61,7 @@
   function render(q) {
     var terms = q.toLowerCase().split(/\s+/).filter(Boolean);
     if (!terms.length) {
-      list.innerHTML = index.map(function (p) {
+      list.innerHTML = index.slice(0, 20).map(function (p) {
         return '<li><a href="' + p.url + '"><div class="r-title">' + esc(p.title) + '</div><div class="r-snippet">' + esc(p.summary) + '</div></a></li>';
       }).join('');
       sel = -1; return;
@@ -83,6 +83,7 @@
       }
     });
     res.sort(function (a, b) { return b.score - a.score; });
+    res = res.slice(0, 50);
     list.innerHTML = res.length ? res.map(function (r) {
       return '<li><a href="' + r.p.url + '"><div class="r-title">' + hl(r.p.title, terms) + '</div><div class="r-snippet">' + hl(r.snip, terms) + '</div></a></li>';
     }).join('') : '<li class="s-empty">没有找到相关文章</li>';

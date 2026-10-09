@@ -159,3 +159,4 @@ span.linenos.special { color: #e6edf3; background-color: #6e7681; padding-left: 
 [data-theme="dark"] .highlight .vi { color: #79C0FF } /* Name.Variable.Instance */
 [data-theme="dark"] .highlight .vm { color: #79C0FF } /* Name.Variable.Magic */
 [data-theme="dark"] .highlight .il { color: #A5D6FF } /* Literal.Number.Integer.Long */
+.highlight .err { border: 0 !important; color: inherit !important; background: none !important; }

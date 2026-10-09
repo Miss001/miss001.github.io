@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GaussDB 知识结构：体系架构-集中式 · Miss001</title>
+<meta name="description" content="要点：基本架构、逻辑结构、物理架构。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="GaussDB 知识结构：体系架构-集中式 · Miss001">
+<meta property="og:description" content="要点：基本架构、逻辑结构、物理架构。">
+<meta property="og:url" content="https://miss001.github.io/posts/gaussdb-zhi-shi-jie-gou-ti-xi-jia-gou-ji-zhong-shi/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/gaussdb-zhi-shi-jie-gou-ti-xi-jia-gou-ji-zhong-shi/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 9 月 14 日</span><span>·</span><span>1 分钟阅读</span></div>
+    <h1>GaussDB 知识结构：体系架构-集中式</h1>
+    <p class="post-summary">要点：基本架构、逻辑结构、物理架构。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/gaussdb/">GaussDB</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">基本架构<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<ul>
+<li>gaussdb(for opengauss)</li>
+<li>运行流程  <br />
+ 客户端建立和数据库之间的连接---&gt; GaussMaster线程衍生出一个子线程(gaussdb) --&gt; 执行SQL请求 --&gt; 返回结果 --&gt; 关闭连接</li>
+</ul>
+<h2 id="_2">逻辑结构<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<p><em>节点组件</em></p>
+<ul>
+<li>
+<p>CM(Cluster Manager)  <br />
+  集群管理模块，管理和监控系统中各个功能单元和物理资源的运行情况</p>
+</li>
+<li>
+<p>ETCD(Editable Text Configuration Daemon)   <br />
+  用于共享配置和服务发现（服务注册和查找）</p>
+</li>
+<li>
+<p>DN(Data Node)   <br />
+  数据节点，负责存储业务数据、执行数据查询任务以及返回执行结果</p>
+</li>
+<li>
+<p>OM(Operation Manager)  <br />
+  运维管理模块，提供集群日常运维、配置管理的管理接口、工具</p>
+</li>
+</ul>
+<p><em>数据库属性</em></p>
+<ul>
+<li>
+<p>cluster   <br />
+  一个 opengauss 服务 管理一个 dbcluster</p>
+</li>
+<li>
+<p>database   <br />
+  一个 cluster 可以创建多个 database, 每个database 相互独立无法跨库查询</p>
+</li>
+<li>
+<p>schema   <br />
+  一个 database 可以创建多个 schema, 不同 schema 之间可以相互访问</p>
+</li>
+<li>
+<p>object   <br />
+  所有对象都在 schema 中创建, 不同 schema 可以创建同名对象</p>
+</li>
+<li>
+<p>user   <br />
+  一个 opengauss 可以创建多个User和UserGroup, 在服务范围内共享</p>
+</li>
+</ul>
+<h2 id="_3">物理架构<a class="headerlink" href="#_3" title="本节链接">#</a></h2>
+<ul>
+<li>每个表对应一个数据文件，当数据文件大于1G会被分割成多个小文件</li>
+<li>索引存储文件为后缀是 _fsm</li>
+<li>用户建表时没有指定表空间，所有新建的表都会放在pg_default中,对应目录是 $dbnode_path/base</li>
+<li>整个实例数据库所共享的系统表存放在pg_global。对应目录是 $dbnode_path/global</li>
+</ul>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/gaussdb/%E7%9F%A5%E8%AF%86%E7%BB%93%E6%9E%84/%E4%BD%93%E7%B3%BB%E6%9E%B6%E6%9E%84-%E9%9B%86%E4%B8%AD%E5%BC%8F.md">Miss001/data-engineering-notes · database/domestic/gaussdb/知识结构/体系架构-集中式.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/elasticsearch-bu-shu-docker-bu-shu/"><small>上一篇</small>Elasticsearch 部署：docker部署</a><a class="glass next" href="/posts/postgresql-jia-gou-dao-ru-dao-chu/"><small>下一篇</small>PostgreSQL 架构：导入导出</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">基本架构</a></li><li><a href="#_2">逻辑结构</a></li><li><a href="#_3">物理架构</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

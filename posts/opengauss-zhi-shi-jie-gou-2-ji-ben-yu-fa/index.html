@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openGauss 知识结构：基本语法 · Miss001</title>
+<meta name="description" content="要点：数据类型、常用函数、日期函数、字符串函数、匿名块、自定义函数等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="openGauss 知识结构：基本语法 · Miss001">
+<meta property="og:description" content="要点：数据类型、常用函数、日期函数、字符串函数、匿名块、自定义函数等。">
+<meta property="og:url" content="https://miss001.github.io/posts/opengauss-zhi-shi-jie-gou-2-ji-ben-yu-fa/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/opengauss-zhi-shi-jie-gou-2-ji-ben-yu-fa/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 8 月 17 日</span><span>·</span><span>11 分钟阅读</span></div>
+    <h1>openGauss 知识结构：基本语法</h1>
+    <p class="post-summary">要点：数据类型、常用函数、日期函数、字符串函数、匿名块、自定义函数等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/opengauss/">openGauss</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">数据类型<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>别名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tinyint</td>
+<td>int1</td>
+<td>一字节整数（0-255）</td>
+</tr>
+<tr>
+<td>smallint</td>
+<td>int2</td>
+<td>有符号双字节整数</td>
+</tr>
+<tr>
+<td>integer</td>
+<td>int，int4</td>
+<td>有符号四字节整数</td>
+</tr>
+<tr>
+<td>bigint</td>
+<td>int8</td>
+<td>有符号的八字节整数</td>
+</tr>
+<tr>
+<td>smallserial</td>
+<td>serial2</td>
+<td>自动递增双字节整数</td>
+</tr>
+<tr>
+<td>serial</td>
+<td>serial4</td>
+<td>自动递增四字节整数</td>
+</tr>
+<tr>
+<td>bigserial</td>
+<td>serial8</td>
+<td>自动递增八字节整数</td>
+</tr>
+<tr>
+<td>largeserial</td>
+<td>serial16</td>
+<td>自动递增十六字节整数</td>
+</tr>
+<tr>
+<td>real</td>
+<td>float4</td>
+<td>单精度浮点数（4字节）</td>
+</tr>
+<tr>
+<td>double precision</td>
+<td>float8</td>
+<td>双精度浮点数（8 个字节）</td>
+</tr>
+<tr>
+<td>numeric[p,s]</td>
+<td>decimal[p,s] number[p,s]</td>
+<td>可选精度的精确数字</td>
+</tr>
+<tr>
+<td>bit(n)</td>
+<td></td>
+<td>固定长度的位串</td>
+</tr>
+<tr>
+<td>bit varying(n)</td>
+<td>varbit[n]</td>
+<td>可变长度的位串</td>
+</tr>
+<tr>
+<td>boolean</td>
+<td>bool</td>
+<td>逻辑布尔值（真/假）</td>
+</tr>
+<tr>
+<td>character(n)</td>
+<td>char(n)</td>
+<td>定长字符串</td>
+</tr>
+<tr>
+<td>nchar(n)</td>
+<td></td>
+<td>定长字符串,用于存储 Unicode 字符数据</td>
+</tr>
+<tr>
+<td>character varying(n)</td>
+<td>varchar(n) varchar2(n)</td>
+<td>变长字符串</td>
+</tr>
+<tr>
+<td>nvarchar2(n)</td>
+<td></td>
+<td>变长字符串,定长字符串</td>
+</tr>
+<tr>
+<td>text</td>
+<td>clob</td>
+<td>变长字符串(文本大对象)。最大为1GB-1</td>
+</tr>
+<tr>
+<td>bytea</td>
+<td></td>
+<td>变长的二进制字符串</td>
+</tr>
+<tr>
+<td>blob</td>
+<td></td>
+<td>二进制大对象,列存不支持</td>
+</tr>
+<tr>
+<td>raw</td>
+<td></td>
+<td>变长的十六进制类型,列存不支持</td>
+</tr>
+<tr>
+<td>date</td>
+<td></td>
+<td>日期和时间。</td>
+</tr>
+<tr>
+<td>smalldatetime</td>
+<td></td>
+<td>日期和时间，不带时区。精确到分钟，秒位大于等于30秒进一位</td>
+</tr>
+<tr>
+<td>time[p] [ without time zone ]</td>
+<td></td>
+<td>一天中的时间（无时区）</td>
+</tr>
+<tr>
+<td>time[p] with time zone</td>
+<td>timetz</td>
+<td>一天中的时间，包括时区</td>
+</tr>
+<tr>
+<td>timestamp[p] [ without time zone ]</td>
+<td></td>
+<td>日期和时间（无时区）</td>
+</tr>
+<tr>
+<td>timestamp[p] with time zone</td>
+<td>timestamptz</td>
+<td>日期和时间，包括时区</td>
+</tr>
+<tr>
+<td>interval[fileds][p]</td>
+<td></td>
+<td>时间间隔</td>
+</tr>
+<tr>
+<td>reltime</td>
+<td></td>
+<td>相对时间间隔，格式为：X years X mons X days XX:XX:XX</td>
+</tr>
+<tr>
+<td>abstime</td>
+<td></td>
+<td>日期和时间。格式为：YYYY-MM-DD hh:mm:ss+timezone</td>
+</tr>
+<tr>
+<td>json</td>
+<td></td>
+<td>文本 JSON 数据</td>
+</tr>
+<tr>
+<td>jsonb</td>
+<td></td>
+<td>二进制 JSON 数据，已分解</td>
+</tr>
+<tr>
+<td>uuid</td>
+<td></td>
+<td>通用唯一标识符</td>
+</tr>
+<tr>
+<td>xml</td>
+<td></td>
+<td>xml数据。该功能默认未开启，使用需要重新使用build.sh脚本编译数据库，修改./configure配置参数，在其中加入--with-libxml参数</td>
+</tr>
+<tr>
+<td>tsquery</td>
+<td></td>
+<td>表示一个检索条件，存储用于检索的词汇，并且使用布尔操作符&amp;（AND）,括号用来强调操作符的分组</td>
+</tr>
+<tr>
+<td>tsvector</td>
+<td></td>
+<td>表示一个检索单元,是唯一分词的分类列表，把一句话的词格式化为不同的词条</td>
+</tr>
+<tr>
+<td>point</td>
+<td></td>
+<td>平面上的几何点 (x,y)</td>
+</tr>
+<tr>
+<td>polygon</td>
+<td></td>
+<td>平面上的封闭几何路径 ((x1,y1),...)</td>
+</tr>
+<tr>
+<td>path</td>
+<td></td>
+<td>平面上的几何路径 ((x1,y1),...)</td>
+</tr>
+<tr>
+<td>lseg</td>
+<td></td>
+<td>平面上的(有限)线段 ((x1,y1),(x2,y2))</td>
+</tr>
+<tr>
+<td>circle</td>
+<td></td>
+<td>平面上的圆 &lt;(x,y),r&gt; （圆心和半径）</td>
+</tr>
+<tr>
+<td>box</td>
+<td></td>
+<td>平面上的矩形 ((x1,y1),(x2,y2))</td>
+</tr>
+<tr>
+<td>cidr</td>
+<td></td>
+<td>IPv4或IPv6网络，格式为address/y，不接受子网掩码</td>
+</tr>
+<tr>
+<td>inet</td>
+<td></td>
+<td>IPv4或IPv6主机和网络，格式是address/y，接受子网掩码</td>
+</tr>
+<tr>
+<td>macaddr</td>
+<td></td>
+<td>MAC地址</td>
+</tr>
+<tr>
+<td>money</td>
+<td></td>
+<td>货币金额，仅列存储支持</td>
+</tr>
+<tr>
+<td>hll</td>
+<td></td>
+<td>统计数据集中唯一值个数</td>
+</tr>
+<tr>
+<td>hash16</td>
+<td></td>
+<td>以无符号64位整数存储。</td>
+</tr>
+<tr>
+<td>hash32</td>
+<td></td>
+<td>以包含16个的无符号整型元素数的组存储</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">常用函数<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<h3 id="_3">日期函数<a class="headerlink" href="#_3" title="本节链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>返回类型</th>
+<th>功能</th>
+<th>用法</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>current_date</td>
+<td>date</td>
+<td>返回当前日期</td>
+<td>SELECT current_date</td>
+<td>2024-10-25</td>
+</tr>
+<tr>
+<td>current_time</td>
+<td>timestamptz</td>
+<td>返回当前时间</td>
+<td>SELECT current_time</td>
+<td>05:01:36.526429-04</td>
+</tr>
+<tr>
+<td>current_timestamp</td>
+<td>timestamptz</td>
+<td>返回当前日期和时间以及时区</td>
+<td>SELECT current_timestamp</td>
+<td>2024-10-25 05:10:47.281405-04</td>
+</tr>
+<tr>
+<td>localtime</td>
+<td>time</td>
+<td>返回当前事务开始的时间</td>
+<td>SELECT localtime</td>
+<td>05:10:55.796398</td>
+</tr>
+<tr>
+<td>localtimestamp</td>
+<td>timestamptz</td>
+<td>返回当前事务开始的日期和时间</td>
+<td>SELECT localtimestamp</td>
+<td>2024-10-25 05:11:02.983501</td>
+</tr>
+<tr>
+<td>now</td>
+<td>timestamptz</td>
+<td>返回当前事务开始的日期和时间以及时区</td>
+<td>SELECT now()</td>
+<td>2024-10-25 05:11:11.000219-04</td>
+</tr>
+<tr>
+<td>sysdate</td>
+<td>timestamp</td>
+<td>返回当前时间</td>
+<td>SELECT sysdate</td>
+<td>2024-10-25 06:21:59</td>
+</tr>
+<tr>
+<td>age</td>
+<td>interval</td>
+<td>计算两个时间戳之间的年龄，并返回使用年和月的“符号”结果</td>
+<td>SELECT age('2024-01-01 00:00:00', '2000-01-01 15:20:10')</td>
+<td>23 years 11 mons 30 days 08:39:50</td>
+</tr>
+<tr>
+<td>date_part</td>
+<td>double precision</td>
+<td>获取时间戳或间隔值的字段，例如年、月、日等。</td>
+<td>SELECT date_part('year', TIMESTAMP '2017-01-01')</td>
+<td>2017</td>
+</tr>
+<tr>
+<td>date_trunc</td>
+<td>timestamp</td>
+<td>返回截断为指定精度的时间戳</td>
+<td>SELECT date_trunc('day', TIMESTAMP '2017-03-17 02:09:30')</td>
+<td>2017-03-17 00:00:00</td>
+</tr>
+<tr>
+<td>trunc</td>
+<td>timestamp</td>
+<td>日期截取，默认天</td>
+<td>SELECT trunc(timestamp'2001-02-16 20:38:40')</td>
+<td>2001-02-16 00:00:00</td>
+</tr>
+<tr>
+<td>extract</td>
+<td>double precision</td>
+<td>与 date_part() 函数相同</td>
+<td>SELECT extract('YEAR' FROM TIMESTAMP '2017-01-01')</td>
+<td>2017</td>
+</tr>
+<tr>
+<td>to_date</td>
+<td>date</td>
+<td>将字符串文字转为日期</td>
+<td>SELECT to_date('2024-01-01','YYYY-MM-DD')</td>
+<td>2024-01-01 00:00:00</td>
+</tr>
+<tr>
+<td>to_timestamp</td>
+<td>timestamptz</td>
+<td>将字符串转换为基于指定格式的时间戳</td>
+<td>SELECT to_timestamp('2024-01-01 22:30:59','YYYY-MM-DD HH24:MI:SS')</td>
+<td>2024-01-01 22:30:59</td>
+</tr>
+<tr>
+<td>add_months</td>
+<td>timestamp</td>
+<td>返回指定时间加n月，不支持带时区传参</td>
+<td>SELECT add_months(sysdate, 11)</td>
+<td>2025-09-25 06:27:26</td>
+</tr>
+<tr>
+<td>last_day</td>
+<td>timestamp</td>
+<td>返回指定时间当月的最后一天</td>
+<td>SELECT last_day(sysdate)</td>
+<td>2024-10-31 06:27:09</td>
+</tr>
+<tr>
+<td>next_day</td>
+<td>timestamp</td>
+<td>返回指定时间的下一个星期几的时间</td>
+<td>SELECT next_day(sysdate,'Sunday')</td>
+<td></td>
+</tr>
+<tr>
+<td>timestampdiff</td>
+<td>integer</td>
+<td>返回两个日期时间之间的差值,仅在openGauss兼mysql时（即dbcompatibility = 'B'）有效</td>
+<td>SELECT timestampdiff(YEAR, now(), now()+ interval 1 day)</td>
+<td>0</td>
+</tr>
+<tr>
+<td>daterange</td>
+<td>daterange</td>
+<td>返回时间范围</td>
+<td>select daterange('2000-05-06','2000-08-08')</td>
+<td>[2000-05-06,2000-08-08)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_4">字符串函数<a class="headerlink" href="#_4" title="本节链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>返回类型</th>
+<th>功能</th>
+<th>用法</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>length</td>
+<td>integer</td>
+<td>指定encoding编码格式返回字符数，当返回值不一致时说明客户端字符集与数据库字符集不一致</td>
+<td>SELECT length('中'),length('中', 'UTF8')</td>
+<td>1，1</td>
+</tr>
+<tr>
+<td>lengthb</td>
+<td>integer</td>
+<td>返回字符串的字节数</td>
+<td>SELECT lengthb('中')</td>
+<td>3</td>
+</tr>
+<tr>
+<td>octet_length</td>
+<td>integer</td>
+<td>返回字符串的字节数</td>
+<td>SELECT octet_length('中')</td>
+<td>3</td>
+</tr>
+<tr>
+<td>char_length</td>
+<td>integer</td>
+<td>返回字符串的字符数，受客户端与数据库的字符集影响</td>
+<td>SELECT char_length('中')</td>
+<td>1</td>
+</tr>
+<tr>
+<td>bit_length</td>
+<td>integer</td>
+<td>返回字符串的位数</td>
+<td>SELECT bit_length('中')</td>
+<td>24</td>
+</tr>
+<tr>
+<td>notlike</td>
+<td>bool</td>
+<td>比对两个字符串是否不一致</td>
+<td>SELECT notlike('1','3')</td>
+<td>t</td>
+</tr>
+<tr>
+<td>replace</td>
+<td>text</td>
+<td>将字符串中出现的所有子字符串 from 替换为子字符串 to</td>
+<td>SELECT replace('ABC','A','E')</td>
+<td>EBC</td>
+</tr>
+<tr>
+<td>overlay</td>
+<td>text</td>
+<td>从第n位起至m位替换为指定字符串</td>
+<td>SELECT overlay('hello' placing 'world' from 2 for 3 )</td>
+<td>hworldo</td>
+</tr>
+<tr>
+<td>translate</td>
+<td>text</td>
+<td>返回一个字符串，其中一组字符中的字符被另一组字符替换(长度不一致时多余字符会删除)</td>
+<td>SELECT translate('12345', '134', 'ax')</td>
+<td>a2x5</td>
+</tr>
+<tr>
+<td>repeat</td>
+<td>text</td>
+<td>重复字符串指定的次数</td>
+<td>SELECT repeat('*',3)</td>
+<td>***</td>
+</tr>
+<tr>
+<td>lpad</td>
+<td>text</td>
+<td>在一个字符串左侧填充字符到一定长度</td>
+<td>SELECT lpad('123', 5, '00')</td>
+<td>00123</td>
+</tr>
+<tr>
+<td>rpad</td>
+<td>text</td>
+<td>在字符串右侧填充字符到一定长度</td>
+<td>SELECT rpad('123', 5, '00')</td>
+<td>12300</td>
+</tr>
+<tr>
+<td>ltrim</td>
+<td>text</td>
+<td>从字符串的开头删除指定字符串的最长字符（默认情况下为空格）</td>
+<td>SELECT ltrim('00120300', '0')</td>
+<td>120300</td>
+</tr>
+<tr>
+<td>rtrim</td>
+<td>text</td>
+<td>从字符串末尾删除指定字符串的最长字符（默认情况下为空格）</td>
+<td>SELECT rtrim('00120300', '0')</td>
+<td>001203</td>
+</tr>
+<tr>
+<td>btrim</td>
+<td>text</td>
+<td>从字符串开头和结尾删除指定字符串的最长字符（默认情况下为空格）</td>
+<td>SELECT btrim('00120300', '0')</td>
+<td>1203</td>
+</tr>
+<tr>
+<td>trim</td>
+<td>text</td>
+<td>从字符串的开头和结尾删除指定字符串的最长字符（默认情况下为空格）</td>
+<td>SELECT trim('00120300', '0')</td>
+<td>1203</td>
+</tr>
+<tr>
+<td>left</td>
+<td>text</td>
+<td>返回字符串中的前 n 个字符</td>
+<td>SELECT left('ABC',2),left('ABC',-2)</td>
+<td>AB，A</td>
+</tr>
+<tr>
+<td>right</td>
+<td>text</td>
+<td>返回字符串中的最后 n 个字符。当 n 为负数时，返回除前abs(n)个之外的所有字符</td>
+<td>SELECT right('ABC',2),right('ABC',-2)</td>
+<td>BC，C</td>
+</tr>
+<tr>
+<td>substring</td>
+<td>text</td>
+<td>从字符串中提取子字符串</td>
+<td>SELECT substring('apple',1,2)</td>
+<td>ap</td>
+</tr>
+<tr>
+<td>substr</td>
+<td>text</td>
+<td>从字符串中提取子字符串</td>
+<td>SELECT substr('apple',1,2)</td>
+<td>ap</td>
+</tr>
+<tr>
+<td>substrb</td>
+<td>text</td>
+<td>从字符串中提取子字符串，中文不适用</td>
+<td>SELECT substrb('apple',1,2)</td>
+<td>ap</td>
+</tr>
+<tr>
+<td>substring_inner</td>
+<td>text</td>
+<td>从字符串中提取子字符串</td>
+<td>SELECT substring_inner('apple',1,2)</td>
+<td>ap</td>
+</tr>
+<tr>
+<td>split_part</td>
+<td>text</td>
+<td>按指定分隔符分割字符串，并返回第 n 个子字符串</td>
+<td>SELECT split_part('A,B,C', ',', 2)</td>
+<td>B</td>
+</tr>
+<tr>
+<td>position</td>
+<td>integer</td>
+<td>返回字符串中子字符串的位置</td>
+<td>SELECT position('ABC' IN 'ABCDABCDACB')</td>
+<td>1</td>
+</tr>
+<tr>
+<td>strpos</td>
+<td>integer</td>
+<td>返回字符串中子字符串的位置</td>
+<td>SELECT strpos('ABCDABCDACB','ABC' )</td>
+<td>1</td>
+</tr>
+<tr>
+<td>instr</td>
+<td>integer</td>
+<td>从字符串的第n位开始匹配第m次出现的指定字符串的位置</td>
+<td>SELECT instr( 'abcbc', 'bc', 1, 2 )</td>
+<td>4</td>
+</tr>
+<tr>
+<td>regexp_matches</td>
+<td>SETOF text[]</td>
+<td>将 POSIX 正则表达式与字符串进行匹配，并返回匹配的子字符串</td>
+<td>SELECT regexp_matches('Learning #PostgreSQL #REGEXP_MATCHES','#([A-Za-z0-9_]+)','g')</td>
+<td>{PostgreSQL} {REGEXP_MATCHES}</td>
+</tr>
+<tr>
+<td>regexp_replace</td>
+<td>text</td>
+<td>将与 POSIX 正则表达式匹配的子字符串替换为新的子字符串</td>
+<td>SELECT regexp_replace('John Doe','(.<em>) (.</em>)','\2, \1')</td>
+<td>Doe, John</td>
+</tr>
+<tr>
+<td>regexp_like</td>
+<td>bool</td>
+<td>正则匹配like</td>
+<td>SELECT regexp_like('中国','我中')</td>
+<td>t</td>
+</tr>
+<tr>
+<td>regexp_substr</td>
+<td>text</td>
+<td>正则表达式匹配提取子字符串</td>
+<td>SELECT regexp_substr('John,Doe',',(.*)')</td>
+<td>,Doe</td>
+</tr>
+<tr>
+<td>regexp_count</td>
+<td>integer</td>
+<td>返回匹配字串的个数</td>
+<td>regexp_count('112,32,3',',')</td>
+<td>2</td>
+</tr>
+<tr>
+<td>regexp_instr</td>
+<td>integer</td>
+<td>返回从第n位开始匹配出现第m次指定字符串的首字符位移</td>
+<td>SELECT regexp_instr('12,23,34',',', 1, 2, 0)</td>
+<td>6</td>
+</tr>
+<tr>
+<td>regexp_split_to_array</td>
+<td>text[]</td>
+<td>用POSIX正则表达式作为分隔符，将字符串拆分以一个text数组的形式返回</td>
+<td>SELECT regexp_split_to_array('hello;world;apple pencil', ';')</td>
+<td>{hello,world,"apple pencil"}</td>
+</tr>
+<tr>
+<td>regexp_split_to_table</td>
+<td>setof text</td>
+<td>用POSIX正则表达式作为分隔符，将字符串拆分以一个text数组的形式返回</td>
+<td>SELECT regexp_split_to_table('hello;world;apple pencil', E';')</td>
+<td>hello<br/>world<br/>apple pencil</td>
+</tr>
+<tr>
+<td>lower</td>
+<td>text</td>
+<td>将字符串转换为小写</td>
+<td>SELECT lower('appLE')</td>
+<td>apple</td>
+</tr>
+<tr>
+<td>upper</td>
+<td>text</td>
+<td>将字符串转换为大写</td>
+<td>SELECT upper('appLE')</td>
+<td>APPLE</td>
+</tr>
+<tr>
+<td>initcap</td>
+<td>text</td>
+<td>将字符串中的单词转换为标题式大小写</td>
+<td>SELECT initcap('appLE')</td>
+<td>Apple</td>
+</tr>
+<tr>
+<td>format</td>
+<td>text</td>
+<td>基于格式字符串格式化参数</td>
+<td>SELECT format('%s, %s, %2$s, %1$s', 'A', 'C')</td>
+<td>A, C, C, A</td>
+</tr>
+<tr>
+<td>||</td>
+<td></td>
+<td>将两个或多个字符串连接成一个</td>
+<td>SELECT 'A'||NULL||'C'</td>
+<td>NULL</td>
+</tr>
+<tr>
+<td>concat</td>
+<td>text</td>
+<td>将两个或多个字符串连接成一个</td>
+<td>SELECT concat('A',NULL,'C')</td>
+<td>AC</td>
+</tr>
+<tr>
+<td>concat_ws</td>
+<td>text</td>
+<td>将多个字符串连接成一个由指定分隔符分隔的字符串</td>
+<td>SELECT concat_ws(',','A',NULL,'C')</td>
+<td>A,C</td>
+</tr>
+<tr>
+<td>rawcat</td>
+<td>raw</td>
+<td>十六进制字符串连接</td>
+<td>SELECT rawcat('1','2')</td>
+<td>0102</td>
+</tr>
+<tr>
+<td>to_char</td>
+<td>text</td>
+<td>将时间戳、间隔、整数、双精度或数值转换为字符串</td>
+<td>SELECT to_char(387,'999999')<br/>SELECT to_char(TIMESTAMP '2024-01-01 22:30:59','YYYY-MM-DD HH24:MI:SS')</td>
+<td></td>
+</tr>
+<tr>
+<td>to_number</td>
+<td>numeric</td>
+<td>将字符串转换为数值</td>
+<td>SELECT to_number('-12,345.6', '9999999.9')</td>
+<td>-12345.6</td>
+</tr>
+<tr>
+<td>reverse</td>
+<td>text</td>
+<td>返回反转的字符串</td>
+<td>SELECT reverse('ABC')</td>
+<td>CBA</td>
+</tr>
+<tr>
+<td>md5</td>
+<td>text</td>
+<td>以十六进制形式返回字符串的 MD5 哈希值</td>
+<td>SELECT md5('ABC')</td>
+<td>902fbdd2b1df0c4f70b4a5d23525e932</td>
+</tr>
+<tr>
+<td>to_hex</td>
+<td>text</td>
+<td>把number转换成十六进制表现形式</td>
+<td>SELECT to_hex(2147483647)</td>
+<td>7fffffff</td>
+</tr>
+<tr>
+<td>encode</td>
+<td>text</td>
+<td>将二进制数据编码为文本数据</td>
+<td>SELECT encode(E'123\000\001', 'base64')</td>
+<td>MTIzAAE=</td>
+</tr>
+<tr>
+<td>decode</td>
+<td>bytea</td>
+<td>将二进制数据从文本数据中解码</td>
+<td>SELECT decode('MTIzAAE=', 'base64')</td>
+<td></td>
+</tr>
+<tr>
+<td>convert</td>
+<td>bytea</td>
+<td>以指定的目标编码方式转化字符串bytea</td>
+<td>SELECT convert('text_in_utf8', 'UTF8', 'GBK')</td>
+<td></td>
+</tr>
+<tr>
+<td>convert_from</td>
+<td>text</td>
+<td>以数据库的编码方式转化字符串bytea</td>
+<td>SELECT convert_from('text_in_utf8', 'UTF8')</td>
+<td></td>
+</tr>
+<tr>
+<td>convert_to</td>
+<td>bytea</td>
+<td>将字符串转化为指定的的编码格式</td>
+<td>SELECT convert_to('some text', 'UTF8')</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">匿名块<a class="headerlink" href="#_5" title="本节链接">#</a></h2>
+<p>创建语法</p>
+<div class="highlight"><pre><span></span><code><span class="o">[</span><span class="w"> </span><span class="nb">declare</span>
+<span class="w">    </span>declarations<span class="w"> </span><span class="o">]</span><span class="w"> </span>
+begin
+<span class="w">    </span>statements<span class="p">;</span>
+<span class="w">      </span>...
+end<span class="w"> </span><span class="p">;</span>
+</code></pre></div>
+
+<h2 id="_6">自定义函数<a class="headerlink" href="#_6" title="本节链接">#</a></h2>
+<p>创建语法</p>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="p">[</span><span class="k">or</span><span class="w"> </span><span class="k">replace</span><span class="p">]</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">function_name</span><span class="p">(</span><span class="n">param_list</span><span class="p">)</span>
+<span class="k">return</span><span class="w"> </span><span class="n">return_type</span><span class="w"> </span>
+<span class="k">as</span>
+<span class="k">declare</span><span class="w"> </span>
+<span class="c1">-- variable declaration</span>
+<span class="k">begin</span>
+<span class="w"> </span><span class="c1">-- logic</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<h2 id="_7">存储过程<a class="headerlink" href="#_7" title="本节链接">#</a></h2>
+<p>创建语法</p>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="p">[</span><span class="k">or</span><span class="w"> </span><span class="k">replace</span><span class="p">]</span><span class="w"> </span><span class="k">procedure</span><span class="w"> </span><span class="n">procedure_name</span><span class="p">(</span><span class="n">parameter_list</span><span class="p">)</span>
+<span class="k">as</span>
+<span class="k">declare</span>
+<span class="c1">-- variable declaration</span>
+<span class="k">begin</span>
+<span class="c1">-- stored procedure body</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<h2 id="_8">视图<a class="headerlink" href="#_8" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="p">[</span><span class="k">or</span><span class="w"> </span><span class="k">replace</span><span class="p">]</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">view_name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query</span><span class="p">;</span>
+</code></pre></div>
+
+<h2 id="_9">分区表<a class="headerlink" href="#_9" title="本节链接">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 查询分区信息</span>
+<span class="k">with</span><span class="w"> </span><span class="k">recursive</span><span class="w"> </span><span class="n">cte</span><span class="w"> </span><span class="k">as</span><span class="p">(</span>
+<span class="w">  </span><span class="c1">-- 第一个子句只执行一次。</span>
+<span class="w">  </span><span class="k">select</span><span class="w"> </span><span class="n">parentid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">::</span><span class="n">oid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">parentid</span><span class="p">,</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">parttype</span><span class="p">,</span><span class="w"> </span><span class="n">boundaries</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">::</span><span class="nb">integer</span><span class="w"> </span><span class="n">recursion_level</span><span class="w"> </span>
+<span class="w">      </span><span class="k">from</span><span class="w"> </span><span class="n">pg_partition</span><span class="w"> </span>
+<span class="w">      </span><span class="k">where</span><span class="w"> </span><span class="n">relname</span><span class="o">=</span><span class="s1">'table_name'</span>
+<span class="w">  </span><span class="k">union</span><span class="w"> </span><span class="k">ALL</span>
+<span class="w">  </span><span class="c1">-- 第二个子句是迭代逻辑生效的地方</span>
+<span class="w">  </span><span class="k">select</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">parentid</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">parttype</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">boundaries</span><span class="p">,</span><span class="w"> </span><span class="n">cte</span><span class="p">.</span><span class="n">recursion_level</span><span class="w"> </span><span class="o">+</span><span class="mi">1</span>
+<span class="w">      </span><span class="k">from</span><span class="w"> </span><span class="n">pg_partition</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">join</span><span class="w"> </span><span class="n">cte</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">cte</span><span class="p">.</span><span class="n">id</span><span class="o">=</span><span class="n">b</span><span class="p">.</span><span class="n">parentid</span>
+<span class="w">      </span><span class="k">where</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">relname</span><span class="o">&lt;&gt;</span><span class="s1">'table_name'</span>
+<span class="p">)</span>
+<span class="k">select</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="n">parentid</span><span class="p">,</span><span class="n">relname</span><span class="p">,</span><span class="n">parttype</span><span class="p">,</span><span class="n">boundaries</span><span class="p">,</span><span class="n">recursion_level</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">cte</span>
+</code></pre></div>
+
+<ul>
+<li>范围分区（RANGE）</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="k">table_name</span><span class="p">(</span>
+<span class="n">col1</span><span class="w"> </span><span class="k">timestamp</span>
+<span class="p">)</span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span>
+<span class="p">(</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_202401</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">LESS</span><span class="w"> </span><span class="k">THAN</span><span class="p">(</span><span class="s1">'2024-02-01 00:00:00'</span><span class="p">),</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_202402</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">LESS</span><span class="w"> </span><span class="k">THAN</span><span class="p">(</span><span class="s1">'2024-03-01 00:00:00'</span><span class="p">),</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_maxvalue</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">LESS</span><span class="w"> </span><span class="k">THAN</span><span class="p">(</span><span class="k">MAXVALUE</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+
+<ul>
+<li>间隔分区（RANGE-START-END）<br />
+  间隔分区是在范围分区的基础上，增加了间隔值的定义，只支持基于表的一列分区</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="k">table_name</span><span class="p">(</span>
+<span class="n">col1</span><span class="w"> </span><span class="k">timestamp</span>
+<span class="p">)</span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span>
+<span class="p">(</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_2023</span><span class="w"> </span><span class="k">START</span><span class="p">(</span><span class="s1">'2023-01-01 00:00:00'</span><span class="p">)</span><span class="w"> </span><span class="k">END</span><span class="p">(</span><span class="s1">'2024-01-01 00:00:00'</span><span class="p">)</span><span class="w"> </span><span class="k">EVERY</span><span class="p">(</span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'1 MONTH'</span><span class="p">),</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_2024</span><span class="w"> </span><span class="k">START</span><span class="p">(</span><span class="s1">'2024-01-01 00:00:00'</span><span class="p">)</span><span class="w"> </span><span class="k">END</span><span class="p">(</span><span class="s1">'2025-01-01 00:00:00'</span><span class="p">)</span><span class="w"> </span><span class="k">EVERY</span><span class="p">(</span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'1 MONTH'</span><span class="p">),</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_maxvalue</span><span class="w"> </span><span class="k">START</span><span class="p">(</span><span class="s1">'2025-01-01 00:00:00'</span><span class="p">)</span><span class="w"> </span><span class="k">END</span><span class="p">(</span><span class="k">MAXVALUE</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+
+<ul>
+<li>列表分区（LIST）<br />
+  TEXT类型不支持</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="k">table_name</span><span class="p">(</span>
+<span class="n">col1</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="p">)</span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">LIST</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span>
+<span class="p">(</span>
+<span class="w">  </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_A</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'A'</span><span class="p">),</span><span class="w">  </span>
+<span class="w">  </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_B</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'B'</span><span class="p">),</span>
+<span class="w">  </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">P_default</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="k">DEFAULT</span><span class="p">)</span>
+<span class="p">);</span><span class="w"> </span>
+</code></pre></div>
+
+<ul>
+<li>哈希分区（HASH）</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="k">table_name</span><span class="p">(</span>
+<span class="n">col1</span><span class="w"> </span><span class="nb">int</span>
+<span class="p">)</span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">HASH</span><span class="w"> </span><span class="p">(</span><span class="n">col1</span><span class="p">)</span>
+<span class="p">(</span>
+<span class="w">  </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_1</span><span class="p">,</span><span class="w">  </span>
+<span class="w">  </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_2</span><span class="p">,</span><span class="w">  </span>
+<span class="w">  </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_3</span>
+<span class="p">);</span>
+</code></pre></div>
+
+<ul>
+<li>分区嵌套</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">table_name</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">dates</span><span class="w"> </span><span class="nb">DATE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">codes</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="w"> </span><span class="p">(</span><span class="n">dates</span><span class="p">)</span>
+<span class="w">  </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">LIST</span><span class="w"> </span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+<span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_202401</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">LESS</span><span class="w"> </span><span class="k">THAN</span><span class="p">(</span><span class="s1">'2024-02-01 00:00:00'</span><span class="p">)</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_202401_A</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'A'</span><span class="p">),</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_202401_B</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'B'</span><span class="p">),</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">P_202401_default</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="k">DEFAULT</span><span class="p">)</span>
+<span class="w">    </span><span class="p">),</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_202402</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">LESS</span><span class="w"> </span><span class="k">THAN</span><span class="p">(</span><span class="s1">'2024-03-01 00:00:00'</span><span class="p">)</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_202402_A</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'A'</span><span class="p">),</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_202402_B</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'B'</span><span class="p">),</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">P_202402_default</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="k">DEFAULT</span><span class="p">)</span>
+<span class="w">    </span><span class="p">),</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">p_maxvalue</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">LESS</span><span class="w"> </span><span class="k">THAN</span><span class="p">(</span><span class="k">MAXVALUE</span><span class="p">)</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_maxvalue_A</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'A'</span><span class="p">),</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_maxvalue_B</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'B'</span><span class="p">),</span>
+<span class="w">        </span><span class="n">SUBPARTITION</span><span class="w"> </span><span class="n">p_maxvalue_default</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="k">DEFAULT</span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/opengauss/%E7%9F%A5%E8%AF%86%E7%BB%93%E6%9E%84/2.%E5%9F%BA%E6%9C%AC%E8%AF%AD%E6%B3%95.md">Miss001/data-engineering-notes · database/domestic/opengauss/知识结构/2.基本语法.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/linux-duo-ban-ben-java-kong-zhi-pei-zhi/"><small>上一篇</small>Linux 多版本java控制：配置</a><a class="glass next" href="/posts/postgresql-jia-gou-suo-cha-xun-chu-li/"><small>下一篇</small>PostgreSQL 架构：锁查询处理</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">数据类型</a></li><li><a href="#_2">常用函数</a><ul><li><a href="#_3">日期函数</a></li><li><a href="#_4">字符串函数</a></li></ul></li><li><a href="#_5">匿名块</a></li><li><a href="#_6">自定义函数</a></li><li><a href="#_7">存储过程</a></li><li><a href="#_8">视图</a></li><li><a href="#_9">分区表</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

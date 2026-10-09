@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySQL 架构：事物与锁 · Miss001</title>
+<meta name="description" content="要点：事务、索引、锁、元数据锁（DML）、表锁、意向共享锁（IS）&amp;意向排它锁（IX）等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MySQL 架构：事物与锁 · Miss001">
+<meta property="og:description" content="要点：事务、索引、锁、元数据锁（DML）、表锁、意向共享锁（IS）&amp;意向排它锁（IX）等。">
+<meta property="og:url" content="https://miss001.github.io/posts/mysql-jia-gou-shi-wu-yu-suo/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/mysql-jia-gou-shi-wu-yu-suo/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 10 月 8 日</span><span>·</span><span>10 分钟阅读</span></div>
+    <h1>MySQL 架构：事物与锁</h1>
+    <p class="post-summary">要点：事务、索引、锁、元数据锁（DML）、表锁、意向共享锁（IS）&amp;意向排它锁（IX）等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/mysql/">MySQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="1">1 事务<a class="headerlink" href="#1" title="本节链接">#</a></h2>
+<p>事务就是一系列的操作集合，即一个程序的执行单元。事务本身不包含四个特性，</p>
+<p>我们需要通过某些手段，尽可能让这个执行单元满足四个特性，此时我们就可以称它为一个事务，或者说是一个正确的事务。</p>
+<p><strong>原子性</strong> ：一组操作作为整体执行，要么全部成功，要么全部失败（实现：mvcc+undo log）</p>
+<p><strong>一致性</strong>：事务开始和完成，数据保持一致</p>
+<p><strong>隔离性</strong>：事务之间相互独立</p>
+<ul>
+<li><strong>隔离级别</strong></li>
+</ul>
+<p>t表有id,x两个字段，id=1的x值为’0’</p>
+<table>
+<thead>
+<tr>
+<th>事务A：</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1   begin;</td>
+<td>begin;</td>
+</tr>
+<tr>
+<td>T2    update t set x =’abc’ where id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td>T3</td>
+<td>select x from  t where id=1;</td>
+</tr>
+<tr>
+<td>T4    commit;</td>
+<td></td>
+</tr>
+<tr>
+<td>T5</td>
+<td>select x from  t where id=1;</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>commit;</td>
+</tr>
+</tbody>
+</table>
+<p>读未提交：一个事务所作的修改还未提交，其他事务就可以看见</p>
+<div class="highlight"><pre><span></span><code>     (事务B： t3时刻查询结果返回abc)
+</code></pre></div>
+
+<p>读已提交：一个事务所作的修改，必须等到提交后，其他事务才可以看见</p>
+<div class="highlight"><pre><span></span><code>    (事务B ：t3时刻查询结果返回’0’，t5时刻查询结果返回’abc’)
+
+  每次执行sql都会重新拿取一致性视图
+</code></pre></div>
+
+<p>可重复读：事务启动之后（执行第一个sql操作时才算正在的启动，不是begin 或start transaction 时），看到的值至始至终都是一致的</p>
+<div class="highlight"><pre><span></span><code>     (事务B ：t3时刻查询结果返回’0’，t5时刻查询结果返回’0’)
+
+ 第一次执行sql时会拿取一致性视图，之后不再拿取
+</code></pre></div>
+
+<p>串行化：一个事务执行时，对该行记录针对读操作加读锁，对写操作加写锁，当出现锁冲突时，一个事务必须等待另一个事务结束后才可以执行。</p>
+<p><strong>持久性</strong>：事务一旦成功提交，即使出现异常故障也不会丢失数据</p>
+<h2 id="2">2 索引<a class="headerlink" href="#2" title="本节链接">#</a></h2>
+<p>数据存储单元：页（大小16kb）</p>
+<p>结构：b+tree（根据二分法快速查找），双向链表</p>
+<p>索引顺序存储，数据不是顺序存储</p>
+<p><em>假设表t 有a,b,c,d,e五个字段，a为自增主键，bcd为联合索引，共8条数据</em></p>
+<p><em>(存值示例：insert into t values(1,1,1,1,a);)</em></p>
+<p><strong>聚簇索引（主键索引）</strong></p>
+<p>叶子节点存储完整数据</p>
+<p><strong>非聚簇索引（主键以外的索引）</strong></p>
+<p>叶子节点存储主键值</p>
+<p><strong>走索引与全表扫描</strong></p>
+<p>Where 条件能否利用索引本质看此条件能否和b+树索引进行比较大小</p>
+<p>遵循最左前缀原则</p>
+<p>Innodb中 全表扫描 即扫描主键索引的叶子节点</p>
+<p>Mysql 中数字与字符串进行运算时，统一会将字符串转换成数字，非数字字符串会转换成0</p>
+<p>Limit分页越后执行越慢：取出分页中最大的主键值id1，增加where id&gt;id1</p>
+<h2 id="3">3 锁<a class="headerlink" href="#3" title="本节链接">#</a></h2>
+<p><strong>锁检查</strong></p>
+<p>1.SHOW ENGINE INNODB STATUS\G;查看InnoDB存储引擎的运行状况</p>
+<p>2.information_schema.innodb_trx;当前运行的所有事务</p>
+<p>3.Performance_Schema.data_locks;记录了事务请求锁信息</p>
+<p>4.Performance_Schema.metadata_locks;记录了事务请求锁信息</p>
+<table>
+<thead>
+<tr>
+<th>列名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ENGINE</td>
+<td>持有锁或请求锁的存储引擎</td>
+</tr>
+<tr>
+<td>ENGINE_LOCK_ID</td>
+<td>存储引擎持有锁的id,唯一值,由存储引擎id及锁id组成</td>
+</tr>
+<tr>
+<td>ENGINE_TRANSACTION_ID</td>
+<td>事务id,INFORMATION_SCHEMA INNODB_TRX 表trx_id</td>
+</tr>
+<tr>
+<td>THREAD_ID</td>
+<td>thread id,Performance Schema threads 表 THREAD_ID</td>
+</tr>
+<tr>
+<td>EVENT_ID</td>
+<td>Performance Schema持有的事件id,thread_id 和event_id 组成</td>
+</tr>
+<tr>
+<td>OBJECT_SCHEMA</td>
+<td>schema名</td>
+</tr>
+<tr>
+<td>OBJECT_NAME</td>
+<td>表名</td>
+</tr>
+<tr>
+<td>PARTITION_NAME</td>
+<td>分区表分区名</td>
+</tr>
+<tr>
+<td>SUBPARTITION_NAME</td>
+<td>子分区表 子分区名</td>
+</tr>
+<tr>
+<td>INDEX_NAME</td>
+<td>索引名</td>
+</tr>
+<tr>
+<td>OBJECT_INSTANCE_BEGIN</td>
+<td>内存里锁的地址</td>
+</tr>
+<tr>
+<td>LOCK_TYPE</td>
+<td>锁的类型，表锁还是行锁</td>
+</tr>
+<tr>
+<td>LOCK_MODE</td>
+<td>锁的模式:S[,GAP], X[,GAP], IS[,GAP], IX[,GAP],  AUTO_INC, and UNKNOWN</td>
+</tr>
+<tr>
+<td>LOCK_STATUS</td>
+<td>锁状态,GRANTED表示已获取到锁,WAITING表示请求锁中</td>
+</tr>
+<tr>
+<td>LOCK_DATA</td>
+<td>锁的数据,对于innodb而言,行锁会显示行的地址,其它显示为nulldddd</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dml">元数据锁（DML）<a class="headerlink" href="#dml" title="本节链接">#</a></h2>
+<p>Mysqldump备份时使用</p>
+<h2 id="_1">表锁<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<p>1.通过非索引字段检索数据，加表锁</p>
+<p>2.使用索引字段检索数据，但实际全表扫描，加表锁</p>
+<h3 id="isix">意向共享锁（IS）&amp;意向排它锁（IX）<a class="headerlink" href="#isix" title="本节链接">#</a></h3>
+<p>意向共享锁：事务在获取表中某一行的共享锁前必须先获取到意向共享锁或者更高级别的锁</p>
+<p>加锁方式：lock table tmp1 read</p>
+<p>解锁方式：unlock table</p>
+<p>意向排它锁：事务在获取表中某一行的排它锁前必须先获取到意向排它锁</p>
+<p>加锁方式：lock table tmp1 write</p>
+<p>解锁方式：unlock table</p>
+<h3 id="_2">自增锁<a class="headerlink" href="#_2" title="本节链接">#</a></h3>
+<p>所有的insert操作都会排队等待这个自增锁来获取自增值。</p>
+<p>只发生在insert操作时；与事务无关，insert结束锁释放。</p>
+<h2 id="_3">行锁<a class="headerlink" href="#_3" title="本节链接">#</a></h2>
+<p>作用在索引上而非数据本身</p>
+<p>使用相同的索引值检索不同的行，引发锁冲突</p>
+<p>若一条sql没有走索引，则在每一条聚集索引后加X锁</p>
+<h3 id="sx">共享锁（S）&amp;排它锁（X）<a class="headerlink" href="#sx" title="本节链接">#</a></h3>
+<p>1.共享锁：阻塞其他事务对该记录修改,其他记录不影响</p>
+<p>加锁方式：select * from tmp1 where id=1  lock in share mode;</p>
+<p>影响语句：select (但由于存在快照读，普通select不加任何锁)</p>
+<p>2.排它锁：阻塞该事务对该记录查询和修改,其他记录不影响</p>
+<p>加锁方式：select * from tmp1 where id=1  for  update;</p>
+<p>影响语句：insert update delete(当前读)</p>
+<p>3.冲突情况：</p>
+<p>如果T1已经加了 S Lock ,那么T2在同一行上面可以加S Lock</p>
+<p>如果T1已经加了 S Lock ,那么T2在同一行上面不可以加X Lock,T2被阻塞</p>
+<p>如果T1已经加了 X Lock ,那么T2在同一行上面不能加S Lock或X Lock,T2被阻塞,T2只能等待T1释放锁</p>
+<h3 id="_4">实现方式<a class="headerlink" href="#_4" title="本节链接">#</a></h3>
+<h4 id="record-lock">记录锁（record lock）<a class="headerlink" href="#record-lock" title="本节链接">#</a></h4>
+<p>只有在使用主键或唯一索引列查找数据时才会对该索引记录加记录锁</p>
+<p>加锁范围： 索引记录本身</p>
+<h4 id="gap-lock">间隙锁（Gap lock）<a class="headerlink" href="#gap-lock" title="本节链接">#</a></h4>
+<p>间隙锁只存在于RR及以上的隔离级别</p>
+<p>在使用非唯一索引检索数据时，才会对该索引之间间隙加间隙锁；</p>
+<h4 id="_5">插入意向锁<a class="headerlink" href="#_5" title="本节链接">#</a></h4>
+<p>是一种间隙锁，只发生在insert操作时。</p>
+<p>当insert操作发生时,会尝试在指定索引的间隙上加插入意向锁；若两个插入操作都加在同一个间隙上,而这个间隙之前没有其他种类的间隙锁,这两个插入操作都会成功设置插入意向锁且不会互相阻塞.</p>
+<h4 id="next-key-lock">临键锁(Next-key lock)<a class="headerlink" href="#next-key-lock" title="本节链接">#</a></h4>
+<p>是recored lock 与gap lock的结合：锁住记录本身也锁住索引间隙</p>
+<h3 id="_6">案例：<a class="headerlink" href="#_6" title="本节链接">#</a></h3>
+<p>drop table tmp1;</p>
+<p>create table tmp1(id int auto_increment primary key,name varchar(100),salary int);</p>
+<p>insert into tmp1 values(2,'三',100);</p>
+<p>insert into tmp1 values(1,'二',880);</p>
+<p>insert into tmp1 values(3,'四',50);</p>
+<p>create index idx_tmp_salary on tmp1(salary);</p>
+<h4 id="_7">唯一索引精确查询<a class="headerlink" href="#_7" title="本节链接">#</a></h4>
+<p><em>----------</em><em>记录锁</em><em>---------</em></p>
+<p>事务1：</p>
+<p>select * from tmp1 where id=1 for update;</p>
+<p>加锁: IX（table）-&gt; X（primary=1）</p>
+<p>事务2：</p>
+<p>select * from tmp1 where id=1 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=1 for update; /<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 lock in share mode;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where id=2 for update; /<em>不阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 for update; /<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 for update; /<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(4,'六',880);/<em>不阻塞</em>/</p>
+<h4 id="_8">普通索引精确查询<a class="headerlink" href="#_8" title="本节链接">#</a></h4>
+<p><em>----------</em><em>记录锁</em><em>-</em><em>、间隙锁</em><em>--------</em></p>
+<p>事务1：</p>
+<p>select * from tmp1 where salary=880 for update;</p>
+<p>加锁：IX（table）-&gt; X（primary=1）-&gt; X（idx_tmp_salary= (1,880]）-&gt; X（idx_tmp_salary=大于880）</p>
+<p>事务2：</p>
+<p>select * from tmp1 where id=1 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=1 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 lock in share mode;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where id=2 for update;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 lock in share mode;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 for update;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 for update;/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(4,'六',0);/<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(5,'六',1);/<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(6,'六',870);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(7,'六',880);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(8,'六',890);/<em>阻塞</em>/</p>
+<h4 id="_9">非索引精确查询<a class="headerlink" href="#_9" title="本节链接">#</a></h4>
+<p><em>----------</em><em>记录锁</em><em>-</em><em>（锁住整个表索引记录）</em><em>--------</em></p>
+<p>事务1：</p>
+<p>select * from tmp1 where name='二' for update;</p>
+<p>加锁：IX（table）-&gt; X（primary=1）-&gt; X（primary=2）-&gt; X（primary=3）-&gt; X（primary=大于3）</p>
+<p>事务2：</p>
+<p>select * from tmp1 where id=1 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=1 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 for update;/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(4,'六',0);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(5,'六',1);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(6,'六',870);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(7,'六',880);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(8,'六',890);/<em>阻塞</em>/</p>
+<h4 id="_10">唯一索引范围查询<a class="headerlink" href="#_10" title="本节链接">#</a></h4>
+<p><em>----------</em><em>记录锁</em><em>---------</em></p>
+<p>事务1：</p>
+<p>select * from tmp1 where id&gt;=2 and id &lt;=3 for update;</p>
+<p>加锁：IX（table）-&gt; X（primary=2）-&gt; X（primary=3）-&gt; X（primary=大于3）</p>
+<p>事务2：</p>
+<p>select * from tmp1 where id=1 lock in share mode;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where id=1 for update;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where id=2 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 lock in share mode;/<em> 不阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 for update;/<em> 不阻塞</em>/</p>
+<p>insert into tmp1 values(4,'六',0);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(5,'六',1);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(6,'六', 100);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(7,'六',880);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(8,'六',890);/<em>阻塞</em>/</p>
+<h4 id="_11">普通索引范围查询<a class="headerlink" href="#_11" title="本节链接">#</a></h4>
+<p><em>----------</em><em>记录锁、间隙锁</em><em>---------</em></p>
+<p>事务1：</p>
+<p>select * from tmp1 force index(idx_tmp_salary) where salary&gt;50 and salary &lt;800 for update;</p>
+<p>加锁：IX（table）-&gt; X（primary=2）-&gt; X（idx_tmp_salary= (1,880]）-&gt; X（idx_tmp_salary= (2,100]）</p>
+<p>事务2：</p>
+<p>select * from tmp1 where id=1 lock in share mode;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where id=1 for update;/<em>不阻塞</em>/</p>
+<p>select * from tmp1 where id=2 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 for update;/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(4,'六',0);/<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(5,'六',1);/<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(6,'六',2);/<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(7,'六',50);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(8,'六',100);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(9,'六',101);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(10,'六',700);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(11,'六',880);/<em>不阻塞</em>/</p>
+<p>insert into tmp1 values(12,'六',890);/<em>不阻塞</em>/</p>
+<h4 id="_12">非索引范围查询<a class="headerlink" href="#_12" title="本节链接">#</a></h4>
+<p><em>----------</em><em>记录锁（锁住整个表索引记录）</em><em>--------</em></p>
+<p>事务1：</p>
+<p>select * from tmp1 where name in('二','四') for update;</p>
+<p>加锁：IX（table）-&gt; X（primary=1）-&gt; X（primary=2）-&gt; X（primary=3）-&gt; X（primary=大于3）</p>
+<p>事务2：</p>
+<p>select * from tmp1 where id=1 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=1 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where id=2 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=100 for update;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 lock in share mode;/<em>阻塞</em>/</p>
+<p>select * from tmp1 where salary=880 for update;/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(4,'六',0);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(5,'六',1);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(6,'六',870);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(7,'六',880);/<em>阻塞</em>/</p>
+<p>insert into tmp1 values(8,'六',890);/<em>阻塞</em>/</p>
+<h4 id="sql">特殊sql加锁情况<a class="headerlink" href="#sql" title="本节链接">#</a></h4>
+<h5 id="insert-into-select-from">Insert into select * from<a class="headerlink" href="#insert-into-select-from" title="本节链接">#</a></h5>
+<p><em>----------</em><em>表</em><em>tmp2</em><em>有无主键加锁都一样</em><em>------</em></p>
+<p>drop table tmp2;</p>
+<p>create table tmp2(id int auto_increment primary key,name varchar(100),salary int);</p>
+<p>insert into tmp2 select * from tmp1 where name in('二','四');</p>
+<p>加锁：</p>
+<p>tmp1:IS（table）-&gt; S（primary=1）-&gt; S（primary=2）-&gt; S（primary=3）-&gt; S（primary=大于3）</p>
+<p>tmp2: IX（table）</p>
+<h2 id="_13">死锁<a class="headerlink" href="#_13" title="本节链接">#</a></h2>
+<p>表t  id，num为普通索引</p>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>num</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td>2</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>事务a查询id&gt;=1锁定非主键索引，等待锁定主键索引</p>
+<p>事务b查询num&gt;=1锁定非主键索引，等待锁定主键索引</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/mysql/%E6%9E%B6%E6%9E%84/%E4%BA%8B%E7%89%A9%E4%B8%8E%E9%94%81.md">Miss001/data-engineering-notes · database/mysql/架构/事物与锁.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/centos7-docker-dify/"><small>上一篇</small>CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify</a><a class="glass next" href="/posts/conda-offline-migration/"><small>下一篇</small>Conda 环境离线安装与迁移：conda-pack 打包到内网服务器</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#1">1 事务</a></li><li><a href="#2">2 索引</a></li><li><a href="#3">3 锁</a></li><li><a href="#dml">元数据锁（DML）</a></li><li><a href="#_1">表锁</a><ul><li><a href="#isix">意向共享锁（IS）&amp;意向排它锁（IX）</a></li><li><a href="#_2">自增锁</a></li></ul></li><li><a href="#_3">行锁</a><ul><li><a href="#sx">共享锁（S）&amp;排它锁（X）</a></li><li><a href="#_4">实现方式</a></li><li><a href="#_6">案例：</a></li></ul></li><li><a href="#_13">死锁</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

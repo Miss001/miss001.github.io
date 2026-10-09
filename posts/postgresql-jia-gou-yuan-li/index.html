@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PostgreSQL 架构：原理 · Miss001</title>
+<meta name="description" content="要点：基本架构、逻辑结构、物理结构、存储结构、事务、子事务（保存点）等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="PostgreSQL 架构：原理 · Miss001">
+<meta property="og:description" content="要点：基本架构、逻辑结构、物理结构、存储结构、事务、子事务（保存点）等。">
+<meta property="og:url" content="https://miss001.github.io/posts/postgresql-jia-gou-yuan-li/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/postgresql-jia-gou-yuan-li/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 9 月 4 日</span><span>·</span><span>11 分钟阅读</span></div>
+    <h1>PostgreSQL 架构：原理</h1>
+    <p class="post-summary">要点：基本架构、逻辑结构、物理结构、存储结构、事务、子事务（保存点）等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/postgresql/">PostgreSQL</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">基本架构<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<ul>
+<li>
+<p>多进程架构<br />
+  每个客户端连接会启动一个新的后台进程</p>
+</li>
+<li>
+<p>只支持行存储</p>
+</li>
+<li>运行流程<br />
+  客户端建立和数据库之间的连接---&gt; postsmaster进程派生出一个新的服务器进程postgres---&gt; SQL请求---&gt; 检查shared_buffer<br />
+    --&gt;找到数据--&gt; 软解析<br />
+    --&gt;没有找到数据--&gt;协同后台进程从数据文件获取--&gt;加载到 shared_buffer中--&gt;服务器进程将结果从 shared_buffer中返回给客户端--&gt;硬解析  </li>
+</ul>
+<h2 id="_2">逻辑结构<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<ul>
+<li>一个Postgresql服务运行在一个主机(host)上并且管理着一个database cluster。  </li>
+<li>一个DataBase Cluster可以包括：多个Database、多个User、以及Database中的所有对象。</li>
+<li>一个Database 可以有多个Schema（数据库中的命名空间），在数据库中创建的所有对象都是在Schema中创建，一个用户可以从同一个客户端连接中访问不同的Schema。不同的Schema中可以有多个同名的表、视图、索引等对象。当创建一个数据库时，会为其创建一个名为public的默认Schema。</li>
+<li>每个User和UserGroup在Postgresql范围内是共享的。</li>
+<li>每个Database是相互独立的，彼此之间无法直接进行跨库关联查询，需要借助dblink或其他扩展。  </li>
+<li>每个Database都有自己独立的表和索引文件，表和索引文件的大小限制为1 GB。   </li>
+<li>每个表都有两个关联文件、后缀分别为 _fsm 和 _vm。它们称为可用空间映射和可见性映射。用于存储有关可用空间容量的信息、并可查看表文件中的每个页面   </li>
+<li>索引只具有单个可用空间映射、而不具有可见性映射。   </li>
+<li>所有数据库对象都由各自的OID在内部管理，其OID存储在pg_database中。  </li>
+<li>表和索引也由各个OID管理，其OID存储在pg_class中。 </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 数据库对应的oid</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pg_database</span><span class="w"> </span><span class="p">;</span>
+<span class="c1">-- 表/索引等对应的oid</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pg_class</span><span class="w">  </span>
+</code></pre></div>
+
+<h2 id="_3">物理结构<a class="headerlink" href="#_3" title="本节链接">#</a></h2>
+<ul>
+<li>一个database cluster基本上就是作为基础目录(base directory)的一个目录：$PGDATA </li>
+<li>postgresql初始化完成后，会有两个默认的表空间（实际上是文件系统中的一个位置链接，即一个目录）<br />
+  一个是pg_default：如果用户建表时没有指定表空间，所有新建的表都会放在pg_default中,对应目录是 $PGDATA/base <br />
+  一个是pg_global：存放的是整个实例数据库所共享的系统表。对应目录是 $PGDATA/global       </li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>文件名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>base</td>
+<td>表和索引文件存放目录</td>
+</tr>
+<tr>
+<td>global</td>
+<td>全局的系统表存放目录</td>
+</tr>
+<tr>
+<td>pg_commit_ts</td>
+<td>事务提交时间戳数据存放目录</td>
+</tr>
+<tr>
+<td>pg_dynshmem</td>
+<td>被动态共享所使用的文件存放目录</td>
+</tr>
+<tr>
+<td>pg_logical</td>
+<td>用于逻辑复制的元数据和日志存储，支持数据库实例之间的数据同步和复制</td>
+</tr>
+<tr>
+<td>pg_multixact</td>
+<td>处理多事务（Multixact）的信息，主要用于支持多用户同时访问同一行数据时的锁定操作</td>
+</tr>
+<tr>
+<td>pg_notify</td>
+<td>存储数据库系统中的通知事件数据，用于发布/订阅机制（LISTEN/NOTIFY）实现进程间的通信</td>
+</tr>
+<tr>
+<td>pg_replslot</td>
+<td>用于物理或逻辑复制插槽的持久化存储，确保复制不会丢失数据，并管理数据同步的状态</td>
+</tr>
+<tr>
+<td>pg_serial</td>
+<td>用于存储序已提交的列化事务的相关数据</td>
+</tr>
+<tr>
+<td>pg_snapshots</td>
+<td>存储事务快照数据，用于MVCC机制中追踪事务的可见性，帮助管理读操作的一致性</td>
+</tr>
+<tr>
+<td>pg_stat</td>
+<td>用于存储数据库运行时的临时统计信息，避免在每次查询时都访问磁盘上的统计数据文件</td>
+</tr>
+<tr>
+<td>pg_stat_tmp</td>
+<td>统计信息子系统临时文件</td>
+</tr>
+<tr>
+<td>pg_subtrans</td>
+<td>记录子事务的信息</td>
+</tr>
+<tr>
+<td>pg_tblspc</td>
+<td>管理自定义表空间文件信息</td>
+</tr>
+<tr>
+<td>pg_twophase</td>
+<td>存储两阶段提交事务的状态信息，支持分布式事务的管理和提交</td>
+</tr>
+<tr>
+<td>pg_wal</td>
+<td>存储WAL（Write-Ahead Logging）日志，用于数据库的事务日志记录，确保数据在崩溃后的恢复</td>
+</tr>
+<tr>
+<td>pg_xact</td>
+<td>日志提交状态的数据存放目录</td>
+</tr>
+<tr>
+<td>pg_hba.conf</td>
+<td>控制postgresql客户端验证的文件 控制PG客户端认证文件 主机 数据库 用户 ip地址 认证方式</td>
+</tr>
+<tr>
+<td>postgresql.conf</td>
+<td>配置参数文件</td>
+</tr>
+<tr>
+<td>pg_ident.conf</td>
+<td>控制postgresql用户名映射的文件, 配置操作系统用户和数据库服务器上的用户映射</td>
+</tr>
+</tbody>
+</table>
+<p><strong>fsm/vm文件</strong></p>
+<ul>
+<li>
+<p>fsm（free space mapping）
+ 空闲空间映射文件：表文件每个页面上的空闲空间信息<br />
+ 索引没有可见性映射文件，只有fsm<br />
+ 空闲空间映射文件：是表和索引数据文件的第一个分支   </p>
+</li>
+<li>
+<p>vm（visuable mapping）
+ 可见性映射文件：表文件每个页面上的可见性  <br />
+ 索引没有可见性映射文件，只有fsm  <br />
+ 可见性映射文件：是表数据文件的第二个分支  </p>
+</li>
+</ul>
+<p><strong>TOAST文件</strong><br />
+用于存储那些超过特定大小的字段数据，如 TEXT、BYTEA 等大对象。<br />
+每个表都有一个 TOAST 表用于存储大数据，存储位置取决于数据库的物理布局和表空间的配置，与主表关联  </p>
+<h2 id="_4">存储结构<a class="headerlink" href="#_4" title="本节链接">#</a></h2>
+<p><strong>btree索引结构</strong></p>
+<ul>
+<li>元数据：存储B-tree索引的元数据信息</li>
+<li>根节点：树的顶层，包含指向子节点的指针和键值</li>
+<li>子节点：中间层节点，用于导航，存储指向其子节点的指针和对应的键值</li>
+<li>叶子节点：树的最底层节点，存储实际的键值及其对应的数据 CTID（Tuple ID），可以用于直接访问 Heap Page中的实际数据</li>
+</ul>
+<p><strong>数据页结构（8kb）</strong></p>
+<ul>
+<li>header：存储LSN号、校验位等元数据信息，占用24Bytes</li>
+<li>pd_linp：存储指向实际数据的指针,从前往后写</li>
+<li>free space：空闲空间（可分配空间）,当lower和upper相遇表示这个页就已写完</li>
+<li>tuple：存储实际数据行,从后往前写</li>
+<li>special space：页预留的位置</li>
+</ul>
+<h2 id="_5">事务<a class="headerlink" href="#_5" title="本节链接">#</a></h2>
+<p>特性：ACID（原子性/一致性/隔离性/持久性）<br />
+隔离级别：默认Read Committed，支持：READ COMMITTED、REPEATABLE READ、SERIALIZABLE   <br />
+使用MVCC保证事务的一致性和隔离性<br />
+不支持自治事务</p>
+<ul>
+<li>开启事务  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="k">BEGIN</span><span class="w"> </span><span class="k">WORK</span><span class="p">;</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>提交事务 </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">COMMIT</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="w"> </span><span class="k">WORK</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+<span class="k">END</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>回滚事务  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">ROLLBACK</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="w"> </span><span class="k">WORK</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<h3 id="_6">子事务（保存点）<a class="headerlink" href="#_6" title="本节链接">#</a></h3>
+<p>SAVEPOINT（保存点）是一个数据库特性，它允许你在事务中创建命名点，在处理事务中的错误或异常时有选择地回滚到事务中的特定点，而不必撤消到目前为止所做的所有更改。<br />
+一旦事务结束，保存点的生命周期就结束了，即事务结束后，没有办法回到某个保存点。<br />
+示例：</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="c1">-- Start a main transaction</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="c1">-- Perform some operations within the transaction</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="c1">-- Start a subtransaction</span>
+<span class="n">SAVEPOINT</span><span class="w"> </span><span class="n">s1</span><span class="p">;</span>
+<span class="c1">-- Continue with more operations</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+<span class="c1">-- Check the content in the table</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">test0</span><span class="p">;</span>
+<span class="w">  </span><span class="n">i</span>
+<span class="c1">------</span>
+<span class="w"> </span><span class="o">-</span><span class="mi">998</span>
+<span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="k">row</span><span class="p">)</span>
+<span class="c1">-- Something went wrong, let's roll back to the savepoint</span>
+<span class="k">ROLLBACK</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">SAVEPOINT</span><span class="w"> </span><span class="n">s1</span><span class="p">;</span>
+<span class="c1">-- Continue with other operations</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="c1">-- Finally, when everything is fine, commit the transaction</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+<span class="c1">-- Check the content in the table again</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">test0</span><span class="p">;</span>
+<span class="w"> </span><span class="n">i</span>
+<span class="c1">---</span>
+<span class="w"> </span><span class="mi">3</span>
+<span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="k">row</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="_7">组合事务<a class="headerlink" href="#_7" title="本节链接">#</a></h3>
+<ul>
+<li>一个组合事务 ID 是一个内部标识符，用于支持多个事务的行锁定。</li>
+<li>当事务使用 “SELECT … FOR UPDATE”（或者是锁定模式：SHARE、KEY SHARE、NO KEY UPDATE）锁定和更新元组时，将会创建组合事务 ID。</li>
+<li>组合事务 ID 位于pg_multixact目录中。</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">begin</span><span class="p">;</span>
+<span class="c1">-- 查询当前事务id</span>
+<span class="k">select</span><span class="w"> </span><span class="n">txid_current</span><span class="p">();</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span>
+<span class="c1">-- 查询行锁事务id</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">xmin</span><span class="p">,</span><span class="w"> </span><span class="n">xmax</span><span class="p">,</span><span class="w"> </span><span class="n">cmin</span><span class="p">,</span><span class="w"> </span><span class="n">cmax</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">test0</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>事务 852</th>
+<th>事务 853</th>
+<th>事务854</th>
+<th>事务855</th>
+<th>说明</th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SELECT * FROM test0 WHERE i = 6 FOR SHARE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>SELECT * FROM test0 WHERE i = 6 FOR SHARE</td>
+<td></td>
+<td></td>
+<td>此时，两个事务都锁定了该行。该行的<code>xmax</code>字段被设置为<code>1</code>，这是一个组合事务 ID。组合事务<code>1</code>根据事务 ID 指向事务<code>852</code>和<code>853</code>。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>SELECT * FROM test0 WHERE i = 6 FOR SHARE</td>
+<td></td>
+<td>新增一个事务<code>854</code>锁定该行，此时该行的<code>xmax</code>字段被设置为<code>2</code>.即每当一个额外的事务想要锁定一行时， 都必须将整个新的组合事务写入到缓冲区。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>COMMIT;</td>
+<td></td>
+<td>事务<code>854</code>现在已结束，但该行的<code>xmax</code>值仍为<code>14</code>。由于组合事务是不可变的，因此组合事务<code>2</code>仍然会指向现已失效的事务<code>854</code>，以及正在进行中的事务<code>853</code>、<code>852</code>。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>COMMIT;</td>
+<td>COMMIT;</td>
+<td></td>
+<td></td>
+<td>两个事务都结束后，在该行上不再有处于活动状态的锁。它的<code>xmax</code>值仍然是<code>2</code>，并且会一直保持为<code>2</code>，直到另一个进程锁定该行，或者该表被进行<code>VACUUM</code>。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>SELECT * FROM test0 WHERE i = 6 FOR SHARE</td>
+<td>此时，只有事<code>855</code>独占该行锁，此时的<code>xmax</code>为<code>855</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>COMMIT;</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_8">锁<a class="headerlink" href="#_8" title="本节链接">#</a></h2>
+<p>存储在共享内存池中，其大小由配置变量 max_locks_per_transaction 和 max_connections 定义<br />
+若耗尽此内存，服务器将无法授予任何锁 </p>
+<h3 id="lock_type">锁类型（lock_type）<a class="headerlink" href="#lock_type" title="本节链接">#</a></h3>
+<ul>
+<li>
+<p>表级<br />
+  relation: 数据库中的表或视图等对象锁 <br />
+  object: 用于锁定特定对象，如函数、序列等 <br />
+  transactionid: 事务 ID 锁，用于控制事务的并发访问  <br />
+  virtualxid: 虚拟事务 ID 锁，用于控制虚拟事务并发访问<br />
+  page: 页面锁定，表示对数据库文件中的单个页面（page）进行锁定  <br />
+  extend: 数据表空间扩展锁，用于控制对存储文件的扩展  <br />
+  advisory: 咨询锁（advisory lock），用于在应用层面创建的锁，与数据库的标准锁机制独立，通常用于业务逻辑的并发控制 <br />
+  userlock: 用户自定义锁，用于实现应用层面自定义的锁机制  </p>
+</li>
+<li>
+<p>行级<br />
+  tuple: 元组锁定，用于对表中的行（tuple）进行锁定  </p>
+</li>
+</ul>
+<h3 id="_9">锁模式<a class="headerlink" href="#_9" title="本节链接">#</a></h3>
+<ul>
+<li>ACCESS SHARE<br />
+每次执行 SELECT 查询时，相关的表上自动获取 ACCESS SHARE 锁，以确保数据读取过程中表的结构不发生变化。  <br />
+兼容性：ACCESS SHARE 锁之间不会相互阻塞，但它会阻止获取 ACCESS EXCLUSIVE 锁的操作（例如 DROP TABLE、TRUNCATE 或 ALTER TABLE 操作），以避免在读取表时被这些破坏性操作打断。</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">alter</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="k">column</span><span class="w"> </span><span class="n">age</span><span class="w"> </span><span class="nb">int</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>ROW SHARE<br />
+通常在执行操作如 SELECT ... FOR UPDATE 或 SELECT ... FOR SHARE 时被使用  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">update</span><span class="w"> </span><span class="p">;</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">share</span><span class="w"> </span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">--事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">alter</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="k">column</span><span class="w"> </span><span class="n">age</span><span class="w"> </span><span class="nb">int</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>ROW EXCLUSIVE<br />
+对表执行数据修改操作时（如 INSERT、UPDATE、DELETE），该表自动加上 ROW EXCLUSIVE 锁。它不会阻止其他事务读取表数据或执行其他行级修改操作，但会防止一些表结构变更操作</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">delete</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">update</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">price</span><span class="o">=</span><span class="mi">80</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'2d60fb99-0f82-4153-aab8-0ce7117d628f'</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务3</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">alter</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="k">column</span><span class="w"> </span><span class="n">age</span><span class="w"> </span><span class="nb">int</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>SHARE<br />
+由CREATE INDEX（不带CONCURRENTLY）获得。 </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">create</span><span class="w"> </span><span class="k">index</span><span class="w"> </span><span class="n">idx_tmp1_createtime</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">tmp1</span><span class="p">(</span><span class="n">createdtime</span><span class="p">);</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">update</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">price</span><span class="o">=</span><span class="mi">80</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'2d60fb99-0f82-4153-aab8-0ce7117d628f'</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务3</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">update</span><span class="w"> </span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>SHARE ROW EXCLUSIVE <br />
+由CREATE TRIGGER（和某些形式的 ALTER TABLE）所获得  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">REPLACE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">update_age</span><span class="p">()</span>
+<span class="k">RETURNS</span><span class="w"> </span><span class="k">TRIGGER</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="err">$$</span>
+<span class="k">BEGIN</span>
+<span class="w">    </span><span class="k">NEW</span><span class="p">.</span><span class="n">age</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">11</span><span class="p">;</span>
+<span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="k">NEW</span><span class="p">;</span>
+<span class="k">END</span><span class="p">;</span>
+<span class="err">$$</span><span class="w"> </span><span class="k">LANGUAGE</span><span class="w"> </span><span class="n">plpgsql</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TRIGGER</span><span class="w"> </span><span class="n">tmp1_trigger</span><span class="w"> </span><span class="k">BEFORE</span><span class="w"> </span><span class="k">INSERT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">EACH</span><span class="w"> </span><span class="k">ROW</span><span class="w"> </span><span class="k">EXECUTE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">update_age</span><span class="p">();</span>
+<span class="k">rollback</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">update</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">price</span><span class="o">=</span><span class="mi">80</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'2d60fb99-0f82-4153-aab8-0ce7117d628f'</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务3</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">update</span><span class="w"> </span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>SHARE UPDATE EXCLUSIVE <br />
+由VACUUM（不带FULL）、ANALYZE、 CREATE INDEX CONCURRENTLY、REINDEX CONCURRENTLY、 CREATE STATISTICS（以及某些ALTER INDEX 和 ALTER TABLE的变体）获得 </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">tmp1</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">update</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">price</span><span class="o">=</span><span class="mi">80</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'2d60fb99-0f82-4153-aab8-0ce7117d628f'</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+<span class="c1">-- 事务3</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">alter</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">rename</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">age</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">age_1</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>EXCLUSIVE<br />
+由REFRESH MATERIALIZED VIEW CONCURRENTLY获得<br />
+CONCURRENTLY 要求物化视图必须存在数据  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">begin</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="n">MATERIALIZED</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">v_MATERIALIZED</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span>
+<span class="k">WITH</span><span class="w"> </span><span class="k">DATA</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_v_materialized_user_id</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">v_materialized</span><span class="w"> </span><span class="p">(</span><span class="n">user_id</span><span class="p">);</span>
+<span class="n">REFRESH</span><span class="w"> </span><span class="n">MATERIALIZED</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">v_MATERIALIZED</span><span class="p">;</span>
+<span class="k">commit</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>ACCESS EXCLUSIVE<br />
+由ALTER TABLE、DROP TABLE、TRUNCATE、REINDEX、CLUSTER、VACUUM FULL和REFRESH MATERIALIZED VIEW（不带CONCURRENTLY）命令获得。  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">truncate</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">tmp1</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">update</span><span class="w"> </span><span class="n">tmp1</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">price</span><span class="o">=</span><span class="mi">80</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'2d60fb99-0f82-4153-aab8-0ce7117d628f'</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<p><strong><em>锁模式冲突</em></strong></p>
+<table>
+<thead>
+<tr>
+<th>请求锁\已存在锁</th>
+<th>ACCESS SHARE</th>
+<th>ROW SHARE</th>
+<th>ROW EXCLUSIVE</th>
+<th>SHARE UPDATE EXCLUSIVE</th>
+<th>SHARE</th>
+<th>SHARE ROW EXCLUSIVE</th>
+<th>EXCLUSIVE</th>
+<th>ACCESS EXCLUSIVE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACCESS SHARE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>X</td>
+</tr>
+<tr>
+<td>ROW SHARE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>ROW EXCLUSIVE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>SHARE UPDATE EXCLUSIVE</td>
+<td></td>
+<td></td>
+<td></td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>SHARE</td>
+<td></td>
+<td></td>
+<td>X</td>
+<td>X</td>
+<td></td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>SHARE ROW EXCLUSIVE</td>
+<td></td>
+<td></td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>EXCLUSIVE</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>ACCESS EXCLUSIVE</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_10">行级锁行为<a class="headerlink" href="#_10" title="本节链接">#</a></h3>
+<p>事务可以在同一行上持有冲突的锁，即使在不同的子事务中也是如此；但除此之外，两个事务绝不能在同一行上持有冲突的锁。行级锁不会影响数据查询；它们只会阻止对同一行的写入者和锁定者  </p>
+<ul>
+<li>FOR UPDATE<br />
+  FOR UPDATE会导致由SELECT语句检索到的行被锁定，从而阻止它们被其他事务锁定、修改或者删除（如：UPDATE, DELETE, SELECT FOR UPDATE, SELECT FOR NO KEY UPDATE, SELECT FOR SHARE or SELECT FOR KEY SHARE），一直到当前事务结束。</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>FOR NO KEY UPDATE<br />
+  和FOR UPDATE命令类似，但是对于获取锁的要求更加宽松一些，在同一行中不会阻塞SELECT FOR KEY SHARE命令。同样在UPDATE命令的时候如果没有获取到FOR UPDATE锁的情况下会获取到该锁</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">NO</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">NO</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>FOR SHARE<br />
+  行为与FOR NO KEY UPDATE类似，不过它在每个检索到的行上获得一个共享锁而不是排他锁</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span><span class="w"> </span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span><span class="w"> </span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>FOR KEY SHARE<br />
+  行为与FOR SHARE类似，不过锁较弱：SELECT FOR UPDATE会被阻塞，但是SELECT FOR NO KEY UPDATE不会被阻塞</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 事务1</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="c1">-- 事务2</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">tmp1</span><span class="w">  </span><span class="k">where</span><span class="w"> </span><span class="n">user_id</span><span class="o">=</span><span class="s1">'4108da7b-94b8-471a-9458-9819691af911'</span><span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<p><strong><em>锁冲突模式</em></strong></p>
+<table>
+<thead>
+<tr>
+<th>请求行为\已存在的行为</th>
+<th>FOR KEY SHARE</th>
+<th>FOR SHARE</th>
+<th>FOR NO KEY UPDATE</th>
+<th>FOR UPDATE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FOR KEY SHARE</td>
+<td></td>
+<td></td>
+<td></td>
+<td>X</td>
+</tr>
+<tr>
+<td>FOR SHARE</td>
+<td></td>
+<td></td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>FOR NO KEY UPDATE</td>
+<td></td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+<tr>
+<td>FOR UPDATE</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+<td>X</td>
+</tr>
+</tbody>
+</table>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/postgresql/%E6%9E%B6%E6%9E%84/%E5%8E%9F%E7%90%86.md">Miss001/data-engineering-notes · database/postgresql/架构/原理.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/oceanbase-bu-shu-deploy-single/"><small>上一篇</small>OceanBase 部署：单节点部署</a><a class="glass next" href="/posts/oceanbase-gong-ju/"><small>下一篇</small>OceanBase：工具</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">基本架构</a></li><li><a href="#_2">逻辑结构</a></li><li><a href="#_3">物理结构</a></li><li><a href="#_4">存储结构</a></li><li><a href="#_5">事务</a><ul><li><a href="#_6">子事务（保存点）</a></li><li><a href="#_7">组合事务</a></li></ul></li><li><a href="#_8">锁</a><ul><li><a href="#lock_type">锁类型（lock_type）</a></li><li><a href="#_9">锁模式</a></li><li><a href="#_10">行级锁行为</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

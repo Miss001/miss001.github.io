@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDH 6.3.0 部署 Spark 3 · Miss001</title>
+<meta name="description" content="要点：九 组件升级、spark版本升级。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="CDH 6.3.0 部署 Spark 3 · Miss001">
+<meta property="og:description" content="要点：九 组件升级、spark版本升级。">
+<meta property="og:url" content="https://miss001.github.io/posts/spark-sheng-ji-cdh6-3-0-bu-shu-spark3/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/spark-sheng-ji-cdh6-3-0-bu-shu-spark3/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 6 月 4 日</span><span>·</span><span>4 分钟阅读</span></div>
+    <h1>CDH 6.3.0 部署 Spark 3</h1>
+    <p class="post-summary">要点：九 组件升级、spark版本升级。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/bigdata/">大数据</a><a href="/tags/spark/">Spark</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">九 组件升级<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<h3 id="1-spark">1) spark版本升级<a class="headerlink" href="#1-spark" title="本节链接">#</a></h3>
+<p>从spark2升级到spark3.1.1，版本与kylin4使用的版本兼容</p>
+<p><strong>参考链接</strong></p>
+<p><a href="https://blog.csdn.net/qq_36610426/article/details/127997188">spark3.3.1 for CDH6.3.2 打包_spark3 cdh6.3.2-CSDN博客</a></p>
+<p><a href="https://juejin.cn/post/7140053569431928845">CDH6.3.2 升级 Spark3.3.0 版本 - 掘金 (juejin.cn)</a></p>
+<p><strong>环境准备</strong></p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>java</td>
+<td>jdk1.8.0_91</td>
+</tr>
+<tr>
+<td>scala</td>
+<td>scala-2.12.18.tgz</td>
+</tr>
+<tr>
+<td>maven</td>
+<td>apache-maven-3.6.3-bin.tar.gz</td>
+</tr>
+<tr>
+<td>spark</td>
+<td>spark-3.1.1.tgz</td>
+</tr>
+</tbody>
+</table>
+<p><strong>源码下载</strong></p>
+<p><a href="https://archive.apache.org/dist/spark/spark-3.1.1/">Index of /dist/spark/spark-3.1.1 (apache.org)</a></p>
+<p><strong>编译</strong></p>
+<p>进入spark目录下</p>
+<div class="highlight"><pre><span></span><code>./dev/make-distribution.sh<span class="w"> </span><span class="se">\</span>
+--name<span class="w"> </span><span class="m">3</span>.0.0-cdh6.3.0<span class="w"> </span>--tgz<span class="w">  </span>-Pyarn<span class="w"> </span>-Phadoop-3.0<span class="w"> </span><span class="se">\</span>
+-Phive<span class="w"> </span>-Phive-thriftserver<span class="w"> </span>-Dhadoop.version<span class="o">=</span><span class="m">3</span>.0.0-cdh6.3.0<span class="w"> </span>-X
+</code></pre></div>
+
+<p><strong>编译安装包地址</strong></p>
+<p>链接：&lt;TOKEN&gt; 
+提取码：&lt;TOKEN&gt;</p>
+<p><strong>升级</strong></p>
+<p>（1）安装</p>
+<div class="highlight"><pre><span></span><code>tar<span class="w"> </span>-zxvf<span class="w"> </span>spark-3.1.1-bin-3.0.0-cdh6.3.0.tgz<span class="w"> </span>-C<span class="w"> </span>/opt/cloudera/parcels/CDH/lib
+<span class="nb">cd</span><span class="w"> </span>/opt/cloudera/parcels/CDH/lib
+mv<span class="w"> </span>spark-3.1.1-bin-3.0.0-cdh6.3.0/<span class="w"> </span>spark3
+</code></pre></div>
+
+<p>（2）修改配置文件</p>
+<div class="highlight"><pre><span></span><code>将 原集群的 spark-env.sh 复制到 /opt/cloudera/parcels/CDH/lib/spark3/conf 下
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>/etc/spark/conf/spark-env.sh<span class="w">  </span>/opt/cloudera/parcels/CDH/lib/spark3/conf
+chmod<span class="w"> </span>+x<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/spark-env.sh
+
+<span class="c1">#修改 spark-env.sh</span>
+vi<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/spark-env.sh
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">SPARK_HOME</span><span class="o">=</span>/opt/cloudera/parcels/CDH/lib/spark3
+</code></pre></div>
+
+<p>将 hive-site.xml 复制到 spark3/conf 目录下，不需要做变动</p>
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>/etc/hive/conf/hive-site.xml<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/
+</code></pre></div>
+
+<p>将 yarn_conf 复制到 spark3/conf 目录下，不需要做变动</p>
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark/conf/yarn_conf<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/yarn_conf
+</code></pre></div>
+
+<p>将 yarn-site.xml 复制到 spark3/conf 目录下，不需要做变动</p>
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark/conf/yarn_conf/yarn-site.xml<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/yarn-site.xml
+</code></pre></div>
+
+<p>将 hdfs-site.xml 复制到 spark3/conf 目录下，不需要做变动</p>
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark/conf/yarn_conf/hdfs-site.xml<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/hdfs-site.xml
+</code></pre></div>
+
+<p>（3）配置conf</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf
+<span class="c1">## 开启日志</span>
+mv<span class="w"> </span>log4j2.properties.template<span class="w"> </span>log4j2.properties
+<span class="c1">## spark-defaults.conf 配置</span>
+cp<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark/conf/spark-defaults.conf<span class="w"> </span>./
+
+<span class="c1">## 修改 spark-defaults.conf</span>
+vi<span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/conf/spark-defaults.conf
+<span class="c1"># 删除</span>
+spark.extraListeners
+spark.sql.queryExecutionListeners
+spark.yarn.jars
+<span class="c1"># 添加 </span>
+spark.yarn.jars<span class="o">=</span>hdfs:///spark3jar/*
+spark.sql.hive.metastore.version<span class="o">=</span><span class="m">2</span>.1.1
+spark.sql.hive.metastore.jars<span class="o">=</span>/opt/cloudera/parcels/CDH/lib/hive/lib/*
+
+<span class="c1">##上传jar包至hdfs</span>
+hadoop<span class="w"> </span>fs<span class="w"> </span>-mkdir<span class="w"> </span>-p<span class="w"> </span>/spark3jar
+<span class="nb">cd</span><span class="w"> </span>/opt/cloudera/parcels/CDH/lib/spark3/jars
+hadoop<span class="w"> </span>fs<span class="w"> </span>-put<span class="w"> </span>*.jar<span class="w"> </span>/spark3jar
+</code></pre></div>
+
+<p>（4）创建spark3_submit</p>
+<p>cp /opt/cloudera/parcels/CDH/bin/spark-submit.sh  spark3-submit.sh  </br>
+vi /opt/cloudera/parcels/CDH/bin/spark3-submit.sh</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="nv">SOURCE</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">BASH_SOURCE</span><span class="p">[0]</span><span class="si">}</span><span class="s2">"</span>
+<span class="nv">BIN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span>
+<span class="k">while</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-h<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span>
+<span class="k">do</span>
+<span class="w"> </span><span class="nv">SOURCE</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>readlink<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span>
+<span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$SOURCE</span><span class="w"> </span>!<span class="o">=</span><span class="w"> </span>/*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">SOURCE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$BIN_DIR</span><span class="s2">/</span><span class="nv">$SOURCE</span><span class="s2">"</span>
+<span class="w"> </span><span class="nv">BIN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>-P<span class="w"> </span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span>
+<span class="k">done</span>
+<span class="nv">BIN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>-P<span class="w"> </span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span>
+<span class="nv">LIB_DIR</span><span class="o">=</span>/opt/cloudera/parcels/CDH/lib
+<span class="nb">export</span><span class="w"> </span><span class="nv">HADOOP_HOME</span><span class="o">=</span><span class="nv">$LIB_DIR</span>/hadoop
+
+<span class="c1"># Autodetect JAVA_HOME if not defined</span>
+.<span class="w"> </span><span class="nv">$LIB_DIR</span>/bigtop-utils/bigtop-detect-javahome
+
+<span class="c1"># disable randomized hash for string in Python 3.3+</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONHASHSEED</span><span class="o">=</span><span class="m">0</span>
+
+<span class="nb">exec</span><span class="w"> </span><span class="nv">$LIB_DIR</span>/spark3/bin/spark-class<span class="w"> </span>org.apache.spark.deploy.SparkSubmit<span class="w"> </span><span class="s2">"</span><span class="nv">$@</span><span class="s2">"</span>
+</code></pre></div>
+
+<p>（5）创建spark3_sql</p>
+<p>cp /opt/cloudera/parcels/CDH/bin/spark-sql.sh  spark3-sql.sh  </br>
+vi /opt/cloudera/parcels/CDH/bin/spark3-sql.sh</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="nv">SOURCE</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">BASH_SOURCE</span><span class="p">[0]</span><span class="si">}</span><span class="s2">"</span>
+<span class="nv">BIN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span>
+<span class="k">while</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-h<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span>
+<span class="k">do</span>
+<span class="w"> </span><span class="nv">SOURCE</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>readlink<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span>
+<span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$SOURCE</span><span class="w"> </span>!<span class="o">=</span><span class="w"> </span>/*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">SOURCE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$BIN_DIR</span><span class="s2">/</span><span class="nv">$SOURCE</span><span class="s2">"</span>
+<span class="w"> </span><span class="nv">BIN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>-P<span class="w"> </span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span>
+<span class="k">done</span>
+<span class="nv">BIN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>-P<span class="w"> </span><span class="s2">"</span><span class="k">$(</span><span class="w"> </span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$SOURCE</span><span class="s2">"</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="w"> </span><span class="k">)</span><span class="s2">"</span>
+<span class="nv">LIB_DIR</span><span class="o">=</span><span class="nv">$BIN_DIR</span>/../lib
+<span class="nb">export</span><span class="w"> </span><span class="nv">HADOOP_HOME</span><span class="o">=</span><span class="nv">$LIB_DIR</span>/hadoop
+
+<span class="c1"># Autodetect JAVA_HOME if not defined</span>
+.<span class="w"> </span><span class="nv">$LIB_DIR</span>/bigtop-utils/bigtop-detect-javahome
+
+<span class="nb">exec</span><span class="w"> </span><span class="nv">$LIB_DIR</span>/spark3/bin/spark-submit<span class="w"> </span>--class<span class="w"> </span>org.apache.spark.sql.hive.thriftserver.SparkSQLCLIDriver<span class="w"> </span><span class="s2">"</span><span class="nv">$@</span><span class="s2">"</span>
+</code></pre></div>
+
+<p>（6）创建快捷方式</p>
+<div class="highlight"><pre><span></span><code>chmod<span class="w"> </span>+755<span class="w"> </span>/opt/cloudera/parcels/CDH/bin/spark3-submit
+alternatives<span class="w"> </span>--install<span class="w"> </span>/usr/bin/spark3-submit<span class="w"> </span>spark3-submit<span class="w"> </span>/opt/cloudera/parcels/CDH/bin/spark3-submit<span class="w"> </span><span class="m">1</span>
+chmod<span class="w"> </span>+755<span class="w"> </span>/opt/cloudera/parcels/CDH/bin/spark3-sql
+alternatives<span class="w"> </span>--install<span class="w"> </span>/usr/bin/spark3-sql<span class="w"> </span>spark3-sql<span class="w"> </span>/opt/cloudera/parcels/CDH/bin/spark3-sql<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<p>（7）配置环境变量
+vi /etc/profile</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">SPARK2_HOME</span><span class="o">=</span>/opt/cloudera/parcels/CDH/lib/spark
+<span class="nb">export</span><span class="w"> </span><span class="nv">SPARK3_HOME</span><span class="o">=</span>/opt/cloudera/parcels/CDH/lib/spark3
+<span class="nb">alias</span><span class="w"> </span><span class="nv">use_spark2</span><span class="o">=</span><span class="s2">"export SPARK_HOME=</span><span class="nv">$SPARK2_HOME</span><span class="s2">"</span>
+<span class="nb">alias</span><span class="w"> </span><span class="nv">use_spark3</span><span class="o">=</span><span class="s2">"export SPARK_HOME=</span><span class="nv">$SPARK3_HOME</span><span class="s2">"</span>
+use_spark2
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$SPARK_HOME</span>/bin:<span class="nv">$PATH</span>
+</code></pre></div>
+
+<p>（8）测试</p>
+<div class="highlight"><pre><span></span><code>spark3_sql
+</code></pre></div>
+
+<p>（9）同步至其他节点</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/bigdata/spark%E5%8D%87%E7%BA%A7/CDH6.3.0%E9%83%A8%E7%BD%B2spark3.md">Miss001/data-engineering-notes · bigdata/spark升级/CDH6.3.0部署spark3.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/mysql-fu-zhi-zhu-cong-qie-huan/"><small>上一篇</small>MySQL 复制：主从切换</a><a class="glass next" href="/posts/mysql-sql-helper/"><small>下一篇</small>MySQL：常用 SQL 片段</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">九 组件升级</a><ul><li><a href="#1-spark">1) spark版本升级</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

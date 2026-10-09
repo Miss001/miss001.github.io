@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openGauss 迁移转换：mysql至opengauss · Miss001</title>
+<meta name="description" content="要点：语法转换差异、迁移工具、全量迁移-chameleon（基础工具）、增量迁移-confluent（基础工具）、集成工具gs_rep_portal迁移、全量迁移-gs_mysync等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="openGauss 迁移转换：mysql至opengauss · Miss001">
+<meta property="og:description" content="要点：语法转换差异、迁移工具、全量迁移-chameleon（基础工具）、增量迁移-confluent（基础工具）、集成工具gs_rep_portal迁移、全量迁移-gs_mysync等。">
+<meta property="og:url" content="https://miss001.github.io/posts/opengauss-qian-yi-zhuan-huan-mysql-zhi-opengauss/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/opengauss-qian-yi-zhuan-huan-mysql-zhi-opengauss/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 8 月 13 日</span><span>·</span><span>18 分钟阅读</span></div>
+    <h1>openGauss 迁移转换：mysql至opengauss</h1>
+    <p class="post-summary">要点：语法转换差异、迁移工具、全量迁移-chameleon（基础工具）、增量迁移-confluent（基础工具）、集成工具gs_rep_portal迁移、全量迁移-gs_mysync等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/opengauss/">openGauss</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">语法转换差异<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>opengauss6.0.0(兼容mysql)</th>
+<th>mysql8.0.30</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>uuid</td>
+<td>select uuid_short()</td>
+<td>select uuid()</td>
+</tr>
+<tr>
+<td>ifnull</td>
+<td>select ifnull(null,1)</td>
+<td>select ifnull(null,1)</td>
+</tr>
+<tr>
+<td>limit</td>
+<td>select * from test limit 0,2</td>
+<td>select * from test limit 0,2</td>
+</tr>
+<tr>
+<td>group_concat</td>
+<td>with<br/>t as(<br/>select 1 as i ,'a' as id<br/>union ALL<br/>select null as i,'a' as id<br/>union ALL<br/>select 2 as i,'b' as id<br/>union ALL<br/>select 3 as i,'b' as id<br/>)<br/>select group_concat(i SEPARATOR ',')  from t group by id</td>
+<td>with<br/>t as(<br/>select 1 as i ,'a' as id<br/>union ALL<br/>select null as i,'a' as id<br/>union ALL<br/>select 2 as i,'b' as id<br/>union ALL<br/>select 3 as i,'b' as id<br/>)<br/>select group_concat(i SEPARATOR ',')  from t group by id</td>
+</tr>
+<tr>
+<td>尾部空格字符串（' '）</td>
+<td>读取为空字符串（''）</td>
+<td>当字符集排序规则的Pad_attribute='PAD SPACE'时，<br/>识别为：空字符串（''）,like 除外<br/>当字符集排序规则的Pad_attribute='NO PAD'时，<br/>识别为：空格字符串（' '）</td>
+</tr>
+<tr>
+<td>if</td>
+<td>select if(id=1,'男','女') from test</td>
+<td>select if(id=1,'男','女') from test</td>
+</tr>
+<tr>
+<td>str_to_date</td>
+<td>select str_to_date('2024-01-01 00:0:00','%Y-%m-%d %H:%s:%i')</td>
+<td>select str_to_date('2024-01-01 00:0:00','%Y-%m-%d %H:%s:%i')</td>
+</tr>
+<tr>
+<td>date_format</td>
+<td>select date_format(now(),'%Y-%m-%d %H:%s:%i')</td>
+<td>select date_format(now(),'%Y-%m-%d %H:%s:%i')</td>
+</tr>
+<tr>
+<td>timestampdiff</td>
+<td>select timestampdiff(SECOND,str_to_date('2024-01-01 00:00:00','%Y-%m-%d %H:%s:%i'),now())</td>
+<td>select timestampdiff(SECOND,str_to_date('2024-01-01 00:00:00','%Y-%m-%d %H:%s:%i'),now())</td>
+</tr>
+<tr>
+<td>interval</td>
+<td>select  now() + interval 1 DAY</td>
+<td>select  now() + interval 1 DAY</td>
+</tr>
+<tr>
+<td>伪劣排序</td>
+<td>select row_number() over () as rowId from test</td>
+<td>select (@i:=@i+1) As rowId<br/>from test a,<br/>     (select @i := 0) b</td>
+</tr>
+<tr>
+<td>replace into</td>
+<td>replace into test(id,content)<br/>select 1,'tx'</td>
+<td>replace into test(id,content)<br/>select 1,'tx'</td>
+</tr>
+<tr>
+<td>insert … on duplicate key update</td>
+<td>不支持子查询</td>
+<td>INSERT INTO test (id, content) <br/>select * from(<br/>select 2 as id,'tx' as content<br/>)b<br/>ON DUPLICATE KEY <br/>UPDATE content=b.content</td>
+</tr>
+<tr>
+<td>insert ignore</td>
+<td>INSERT IGNORE INTO test(id, content) <br/>select 3 as id,'tx' as content</td>
+<td>INSERT IGNORE INTO test(id, content) <br/>select 3 as id,'tx' as content</td>
+</tr>
+<tr>
+<td>多表关联更新</td>
+<td>UPDATE <br/>    product p<br/>    JOIN product_segment s ON p.segment_id = s.id<br/>    JOIN segment t ON s.segment=t.segment<br/>SET <br/>    p.net_price = p.price - p.price * s.discount,<br/>    p.segment_name=t.segment</td>
+<td>UPDATE <br/>    product p<br/>    JOIN product_segment s ON p.segment_id = s.id<br/>    JOIN segment t ON s.segment=t.segment<br/>SET <br/>    p.net_price = p.price - p.price * s.discount,<br/>    p.segment_name=t.segment</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">迁移工具<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<p>通过gs_rep_portal工具包安装各个迁移工具<br />
+切换用户进行操作root用户无法成功进行迁移  </p>
+<div class="highlight"><pre><span></span><code>su<span class="w"> </span>-<span class="w"> </span>omm
+</code></pre></div>
+
+<h3 id="-chameleon">全量迁移-chameleon（基础工具）<a class="headerlink" href="#-chameleon" title="本节链接">#</a></h3>
+<p>vi /home/omm/.pg_chameleon/configuration/default_1.yml</p>
+<div class="highlight"><pre><span></span><code>pid_dir:<span class="w"> </span>/home/omm/portal/workspace/1/pid/
+log_dir:<span class="w"> </span>~/.pg_chameleon/logs/
+log_dest:<span class="w"> </span>file
+log_level:<span class="w"> </span>info
+log_days_keep:<span class="w"> </span><span class="m">10</span>
+rollbar_key:<span class="w"> </span><span class="s1">''</span>
+rollbar_env:<span class="w"> </span><span class="s1">''</span>
+dump_json:<span class="w"> </span><span class="s1">'yes'</span>
+type_override:<span class="w"> </span>null
+compress_properties:
+<span class="w">  </span>compresstype:<span class="w"> </span><span class="m">0</span>
+<span class="w">  </span>compress_level:<span class="w"> </span><span class="m">0</span>
+<span class="w">  </span>compress_chunk_size:<span class="w"> </span><span class="m">4096</span>
+<span class="w">  </span>compress_prealloc_chunks:<span class="w"> </span><span class="m">0</span>
+<span class="w">  </span>compress_byte_convert:<span class="w"> </span><span class="nb">false</span>
+<span class="w">  </span>compress_diff_convert:<span class="w"> </span><span class="nb">false</span>
+pg_conn:
+<span class="w">  </span>host:<span class="w"> </span>&lt;HOST_IP&gt;
+<span class="w">  </span>port:<span class="w"> </span><span class="s1">'15400'</span>
+<span class="w">  </span>user:<span class="w"> </span>root
+<span class="w">  </span>password:<span class="w"> </span>&lt;PASSWORD&gt;
+<span class="w">  </span>database:<span class="w"> </span>mysqlmode_db
+<span class="w">  </span>charset:<span class="w"> </span>utf8
+<span class="w">  </span>params:<span class="w"> </span>null
+sources:
+<span class="w">  </span>mysql:
+<span class="w">    </span>readers:<span class="w"> </span><span class="m">4</span>
+<span class="w">    </span>writers:<span class="w"> </span><span class="m">4</span>
+<span class="w">    </span>retry:<span class="w"> </span><span class="m">3</span>
+<span class="w">    </span>db_conn:
+<span class="w">      </span>host:<span class="w"> </span>&lt;HOST_IP&gt;
+<span class="w">      </span>port:<span class="w"> </span><span class="s1">'3306'</span>
+<span class="w">      </span>user:<span class="w"> </span>root
+<span class="w">      </span>password:<span class="w"> </span><span class="s1">'&lt;PASSWORD&gt;'</span>
+<span class="w">      </span>charset:<span class="w"> </span>utf8
+<span class="w">      </span>connect_timeout:<span class="w"> </span><span class="m">10</span>
+<span class="w">      </span>database:<span class="w"> </span><span class="nb">test</span>
+<span class="w">    </span>schema_mappings:
+<span class="w">      </span>delphis_mediterranea:<span class="w"> </span>loxodonta_africana
+<span class="w">      </span>test:<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="c1">#不能是public</span>
+<span class="w">    </span>limit_tables:
+<span class="w">    </span>-<span class="w"> </span>delphis_mediterranea.foo
+<span class="w">    </span>skip_tables:
+<span class="w">    </span>-<span class="w"> </span>delphis_mediterranea.bar
+<span class="w">    </span>enable_compress:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>compress_tables:
+<span class="w">    </span>-<span class="w"> </span>delphis_mediterranea.foo
+<span class="w">    </span>grant_select_to:
+<span class="w">    </span>-<span class="w"> </span>usr_readonly
+<span class="w">    </span>lock_timeout:<span class="w"> </span>120s
+<span class="w">    </span>my_server_id:<span class="w"> </span><span class="m">100</span>
+<span class="w">    </span>replica_batch_size:<span class="w"> </span><span class="m">10000</span>
+<span class="w">    </span>replay_max_rows:<span class="w"> </span><span class="m">10000</span>
+<span class="w">    </span>batch_retention:<span class="w"> </span><span class="m">1</span><span class="w"> </span>day
+<span class="w">    </span>copy_max_memory:<span class="w"> </span>300M
+<span class="w">    </span>copy_mode:<span class="w"> </span>file
+<span class="w">    </span>out_dir:<span class="w"> </span>/home/omm/portal/workspace/1/tmp/
+<span class="w">    </span>csv_dir:<span class="w"> </span>/home/omm/portal/workspace/1/tmp/
+<span class="w">    </span>contain_columns:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>column_split:<span class="w"> </span><span class="s1">','</span>
+<span class="w">    </span>sleep_loop:<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>on_error_replay:<span class="w"> </span><span class="k">continue</span>
+<span class="w">    </span>on_error_read:<span class="w"> </span><span class="k">continue</span>
+<span class="w">    </span>auto_maintenance:<span class="w"> </span>disabled
+<span class="w">    </span>index_parallel_workers:<span class="w"> </span><span class="m">2</span>
+<span class="w">    </span>gtid_enable:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>type:<span class="w"> </span>mysql
+<span class="w">    </span>skip_events:
+<span class="w">      </span>insert:
+<span class="w">      </span>-<span class="w"> </span>delphis_mediterranea.foo
+<span class="w">      </span>delete:
+<span class="w">      </span>-<span class="w"> </span>delphis_mediterranea
+<span class="w">      </span>update:<span class="w"> </span>null
+<span class="w">    </span>keep_existing_schema:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>migrate_default_value:<span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span>mysql_restart_config:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>is_create_index:<span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span>index_dir:<span class="w"> </span>~/.pg_chameleon/index/
+<span class="w">    </span>is_skip_completed_tables:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>with_datacheck:<span class="w"> </span><span class="nb">false</span>
+<span class="w">    </span>slice_size:<span class="w"> </span><span class="m">100000</span>
+<span class="w">    </span>csv_files_threshold:<span class="w"> </span>null
+<span class="w">    </span>csv_dir_space_threshold:<span class="w"> </span>null
+<span class="w">  </span>pgsql:
+<span class="w">    </span>db_conn:
+<span class="w">      </span>host:<span class="w"> </span>localhost
+<span class="w">      </span>port:<span class="w"> </span><span class="s1">'5432'</span>
+<span class="w">      </span>user:<span class="w"> </span>usr_replica
+<span class="w">      </span>password:<span class="w"> </span>&lt;PASSWORD&gt;
+<span class="w">      </span>database:<span class="w"> </span>db_replica
+<span class="w">      </span>charset:<span class="w"> </span>utf8
+<span class="w">      </span>connect_timeout:<span class="w"> </span><span class="m">10</span>
+<span class="w">      </span>schema_mappings:
+<span class="w">        </span>loxodonta_africana:<span class="w"> </span>elephas_maximus
+<span class="w">      </span>limit_tables:
+<span class="w">      </span>-<span class="w"> </span>loxodonta_africana.foo
+<span class="w">      </span>skip_tables:
+<span class="w">      </span>-<span class="w"> </span>loxodonta_africana.bar
+<span class="w">      </span>copy_max_memory:<span class="w"> </span>300M
+<span class="w">      </span>grant_select_to:
+<span class="w">      </span>-<span class="w"> </span>usr_readonly
+<span class="w">      </span>lock_timeout:<span class="w"> </span>10s
+<span class="w">      </span>my_server_id:<span class="w"> </span><span class="m">100</span>
+<span class="w">      </span>replica_batch_size:<span class="w"> </span><span class="m">3000</span>
+<span class="w">      </span>replay_max_rows:<span class="w"> </span><span class="m">10000</span>
+<span class="w">      </span>sleep_loop:<span class="w"> </span><span class="m">5</span>
+<span class="w">      </span>batch_retention:<span class="w"> </span><span class="m">1</span><span class="w"> </span>day
+<span class="w">      </span>copy_mode:<span class="w"> </span>file
+<span class="w">      </span>out_dir:<span class="w"> </span>/tmp
+<span class="w">      </span>type:<span class="w"> </span>pgsql
+</code></pre></div>
+
+<p>执行迁移任务  </p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 创建schema</span>
+/home/omm/portal/tools/chameleon/chameleon-6.0.0/venv/bin/chameleon<span class="w"> </span>create_replica_schema<span class="w"> </span>--config<span class="w"> </span>default_1
+<span class="c1"># 添加schema源</span>
+/home/omm/portal/tools/chameleon/chameleon-6.0.0/venv/bin/chameleon<span class="w"> </span>add_source<span class="w"> </span>--config<span class="w"> </span>default_1<span class="w"> </span>--source<span class="w"> </span>mysql
+<span class="c1"># 执行全量迁移</span>
+/home/omm/portal/tools/chameleon/chameleon-6.0.0/venv/bin/chameleon<span class="w"> </span>init_replica<span class="w"> </span>--config<span class="w"> </span>default_1<span class="w"> </span>--source<span class="w"> </span>mysql
+<span class="c1"># 清除迁移临时数据</span>
+/home/omm/portal/tools/chameleon/chameleon-6.0.0/venv/bin/chameleon<span class="w"> </span>detach_replica<span class="w"> </span>--config<span class="w"> </span>default_1<span class="w"> </span>--source<span class="w"> </span>mysql
+</code></pre></div>
+
+<h3 id="-confluent">增量迁移-confluent（基础工具）<a class="headerlink" href="#-confluent" title="本节链接">#</a></h3>
+<ul>
+<li>要求：<br />
+  MySQL参数设置要求为：log_bin=ON, binlog_format=ROW, binlog_row_image=FULL, gtid_mode = ON  <br />
+  不支持skip_event, limit_table, skip_table等设置      </li>
+</ul>
+<p>启动zookeeper</p>
+<div class="highlight"><pre><span></span><code>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/zookeeper-server-start<span class="w"> </span>-daemon<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/etc/kafka/zookeeper.properties
+</code></pre></div>
+
+<p>启动kafka</p>
+<div class="highlight"><pre><span></span><code>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/kafka-server-start<span class="w"> </span>-daemon<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/etc/kafka/server.properties
+</code></pre></div>
+
+<p>注册schema</p>
+<div class="highlight"><pre><span></span><code>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/schema-registry-start<span class="w"> </span>-daemon<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/etc/schema-registry/schema-registry.properties
+</code></pre></div>
+
+<p>修改source端配置文件<br />
+vi /home/omm/portal/workspace/1/config/debezium/mysql-source.properties</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># name: source端连接器名称，debezium的原生参数，无默认值，可自定义，不同连接器需保证名称的唯一性</span>
+<span class="nv">name</span><span class="o">=</span>mysql-source-1
+<span class="c1"># connector.class: 连接器的启动类，debezium的原生参数，无默认值，示例中的值为mysql source connector对应的类名，不可修改</span>
+connector.class<span class="o">=</span>io.debezium.connector.mysql.MySqlConnector
+<span class="c1"># database.hostname: mysql数据库主机ip，debezium的原生参数，无默认值，根据实际自定义修改</span>
+database.hostname<span class="o">=</span>&lt;HOST_IP&gt;
+<span class="c1"># database.port: mysql数据库端口，debezium的原生参数，默认值为3306，可根据实际自定义修改</span>
+database.port<span class="o">=</span><span class="m">3306</span>
+<span class="c1"># database.user: mysql数据库用户，debezium的原生参数，无默认值，根据实际自定义修改</span>
+database.user<span class="o">=</span>root
+<span class="c1"># database.password: mysql数据库用户密码，debezium的原生参数，无默认值，根据实际自定义修改</span>
+database.password<span class="o">=</span>&lt;PASSWORD&gt;
+<span class="c1"># database.server.id: mysql数据库实例id，debezium的原生参数，取值为一个随机数，作为数据库的客户端id</span>
+<span class="c1"># 连接器以该id加入MySQL集群，以便读取binlog，默认情况下，会生成5400到6400之间的一个随机数，建议显式设置该值</span>
+<span class="c1"># 针对在当前MySQL集群指定的客户端id，该值必须唯一</span>
+database.server.id<span class="o">=</span><span class="m">47786</span>
+<span class="c1"># database.server.name: mysql数据库实例名称，debezium的原生参数，无默认值，可自定义</span>
+database.server.name<span class="o">=</span>mysql_server_1
+<span class="c1"># database.history.kafka.bootstrap.servers: kafka服务器地址，debezium的原生参数，无默认值，根据实际自定义修改</span>
+database.history.kafka.bootstrap.servers<span class="o">=</span><span class="m">127</span>.0.0.1:9092
+<span class="c1"># database.history.kafka.topic: kafka历史topic名称，debezium的原生参数，无默认值，可自定义</span>
+database.history.kafka.topic<span class="o">=</span>mysql_server_1_history
+<span class="c1"># include.schema.changes: 指定连接器是否将变更发布到kafka主题中，debezium的原生参数，boolean类型，默认值为true，不可修改</span>
+include.schema.changes<span class="o">=</span><span class="nb">true</span>
+<span class="c1"># tasks.max: 连接器创建的最大任务数，debezium的原生参数，默认值为1，MySQL connector通常为单任务，不建议修改</span>
+tasks.max<span class="o">=</span><span class="m">1</span>
+<span class="c1"># snapshot.mode：快照模式，debezium的原生参数，默认值为initial，此处需设置为schema_only，不可修改</span>
+snapshot.mode<span class="o">=</span>schema_only
+<span class="c1"># provide.transaction.metadata: 指定连接器是否存储事务元数据信息，debezium的原生参数，boolean类型，配置为true时并行回放模式为按事务并行回放，配置为false时并行回放模式为按表并行回放，默认为false</span>
+provide.transaction.metadata<span class="o">=</span><span class="nb">false</span>
+<span class="c1"># transforms: kafka topic路由转发名称，debezium提供topic路由能力，不可修改</span>
+<span class="nv">transforms</span><span class="o">=</span>route
+<span class="c1"># transforms.route.type: kafka topic路由转发类型，debezium提供topic路由能力，不可修改</span>
+transforms.route.type<span class="o">=</span>org.apache.kafka.connect.transforms.RegexRouter
+<span class="c1"># transforms.route.regex: kafka topic路由转发正则匹配表达式，正则匹配按照前缀匹配，debezium提供topic路由能力，不可修改</span>
+<span class="c1"># 将ddl, dml及事务topic均路由转发至同一topic，其中正则表达式中的mysql_server与配置项database.server.name相对应</span>
+transforms.route.regex<span class="o">=</span>^mysql_server_1<span class="o">(</span>.*<span class="o">)</span>
+<span class="c1"># transforms.route.replacement: kafka topic路由转发后的topic名称，debezium提供topic路由能力，可自定义</span>
+<span class="c1"># 该参数与mysql-sink.properties的配置项topics相对应</span>
+transforms.route.replacement<span class="o">=</span>mysql_server_1_topic
+<span class="c1"># snapshot.offset.binlog.filename: 新增参数，自定义配置快照点的binlog文件名</span>
+<span class="c1"># 跟全量迁移chameleon配合时，取决于全量迁移后从sch_chameleon.t_replica_batch表中列t_binlog_name中查询的binlog文件名</span>
+snapshot.offset.binlog.filename<span class="o">=</span>
+<span class="c1"># snapshot.offset.binlog.position: 新增参数，自定义配置快照点的binlog位置</span>
+<span class="c1"># 跟全量迁移chameleon配合时，取决于全量迁移后从sch_chameleon.t_replica_batch表中列i_binlog_position中查询的binlog位置</span>
+snapshot.offset.binlog.position<span class="o">=</span><span class="m">0</span>
+<span class="c1"># snapshot.offset.gtid.set: 新增参数，自定义配置快照点的Executed_Gtid_Set</span>
+<span class="c1"># 跟全量迁移chameleon配合时，取决于全量迁移后从sch_chameleon.t_replica_batch表中列executed_gtid_set中查询的gtid set</span>
+<span class="c1"># 需注意最大事务号需减1</span>
+snapshot.offset.gtid.set<span class="o">=</span>
+<span class="c1"># parallel.parse.event: 新增参数，boolean类型，是否启用并行解析event能力，默认为true，表示启用并行解析能力</span>
+<span class="c1"># 若设置为false，则表示不启用并行解析能力，会降低在线迁移的性能</span>
+parallel.parse.event<span class="o">=</span><span class="nb">true</span>
+<span class="c1"># bigint.unsigned.handing.mode: 指定bigint unsigned数据类型的表示方式，debezium的原生参数，可选的值为long和precise。</span>
+<span class="c1"># long对应Java的long类型，precise对应java.math.BigDecimal类型。</span>
+<span class="c1"># 对于大于等于2^63的值，会超出Java的long类型的存储范围，应该使用BigDecimal存储，即设置该值为precise</span>
+bigint.unsigned.handling.mode<span class="o">=</span>precise
+<span class="c1"># database.include.list: 指定mysql库的白名单，debezium的原生参数，String类型，默认值为空字符串，表示捕获所有数据库的变更</span>
+<span class="c1"># 若设置该值，则表示只捕获指定数据库的变更，多个库之间用逗号分隔</span>
+database.include.list<span class="o">=</span><span class="nb">test</span>
+<span class="c1"># commit.process.while.running：布尔值，默认为false，通过该配置项选择是否上报迁移进度</span>
+commit.process.while.running<span class="o">=</span><span class="nb">true</span>
+<span class="c1"># source.process.file.path：迁移进度文件的输出路径，只有commit.process.while.running=true时才起作用，默认在迁移插件同一目录下</span>
+source.process.file.path<span class="o">=</span>/home/omm/portal/workspace/1/status/incremental/
+<span class="c1"># commit.time.interval：迁移进度上报的时间间隔，取int型整数，默认为1，单位：s</span>
+commit.time.interval<span class="o">=</span><span class="m">1</span>
+<span class="c1"># create.count.info.path：记录源端日志生产起始点的文件输出路径，需与sink端的此配置项相同，默认与迁移插件在同一目录下</span>
+create.count.info.path<span class="o">=</span>/home/omm/portal/workspace/1/status/incremental/
+<span class="c1"># process.file.count.limit：进度目录下文件数目限制值，如果进度目录下的文件数目超过该值，工具启动时会按时间从早到晚删除多余的文件，默认值为10</span>
+process.file.count.limit<span class="o">=</span><span class="m">10</span>
+<span class="c1"># process.file.time.limit：进度文件保存时长，超过该时长的文件会在工具下次启动时删除，默认值为168，单位：小时</span>
+process.file.time.limit<span class="o">=</span><span class="m">168</span>
+<span class="c1"># append.write：进度文件写入方式，true表示追加写入，false表示覆盖写入，默认值为false</span>
+append.write<span class="o">=</span><span class="nb">false</span>
+<span class="c1"># file.size.limit：文件大小限制，超过该限制值工具会另启新文件写入，默认为10，单位：兆</span>
+file.size.limit<span class="o">=</span><span class="m">10</span>
+<span class="c1"># snapshot.locking.mode: 控制连接器在获取快照时是否允许获取全局读锁，debezium原生参数，默认值为minimal，此处需设置none，不可修改。</span>
+<span class="c1"># 在全量迁移阶段获取快照时设置读锁，增量迁移无需获取读锁，因此设置为none。</span>
+snapshot.locking.mode<span class="o">=</span>none
+<span class="c1"># min.start.memory: 自定义debezium最小启动内存</span>
+min.start.memory<span class="o">=</span>256M
+<span class="c1"># max.start.memory: 自定义debezium最大启动内存</span>
+max.start.memory<span class="o">=</span>2G
+<span class="c1"># queue.size.limit: source端抽取binlog事件存储队列的最大长度，int类型，默认值为1000000，可自定义</span>
+queue.size.limit<span class="o">=</span><span class="m">1000000</span>
+<span class="c1"># open.flow.control.threshold: 用于流量控制，新增参数，double类型，默认值为0.8，可自定义</span>
+<span class="c1"># 当存储binlog事件的某一队列长度&gt;最大长度queue.size.limit*该门限值时，将启用流量控制，暂停抽取binlog事件</span>
+open.flow.control.threshold<span class="o">=</span><span class="m">0</span>.8
+<span class="c1"># close.flow.control.threshold: 用于流量控制，新增参数，double类型，默认值为0.7，可自定义</span>
+<span class="c1"># 当存储binlog事件的各个队列长度&lt;最大长度queue.size.limit*该门限值时，将关闭流量控制，继续抽取binlog事件</span>
+close.flow.control.threshold<span class="o">=</span><span class="m">0</span>.7
+<span class="c1"># kafka.bootstrap.server: 自定义记录source端与sink端关联参数的Kafka启动服务器地址，可根据实际情况修改，默认值为localhost:9092</span>
+kafka.bootstrap.server<span class="o">=</span><span class="m">127</span>.0.0.1:9092
+<span class="c1"># wait.timeout.second: 自定义JDBC连接在被服务器自动关闭之前等待活动的秒数。如果客户端在这段时间内没有向服务器发送任何请求，服务器将关闭该连接，默认值：28800，单位：秒</span>
+wait.timeout.second<span class="o">=</span><span class="m">28800</span>
+</code></pre></div>
+
+<p>启动source端</p>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/connect-standalone<span class="w">  </span>/home/omm/portal/workspace/1/config/debezium/connect-avro-standalone-source.properties<span class="w"> </span>/home/omm/portal/workspace/1/config/debezium/mysql-source.properties<span class="w"> </span>&gt;source.log<span class="w"> </span><span class="p">&amp;</span>
+</code></pre></div>
+
+<p>修改sink端配置文件</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># name: source端连接器名称，debezium的原生参数，无默认值，可自定义，不同连接器需保证名称的唯一性</span>
+<span class="nv">name</span><span class="o">=</span>mysql-sink-1
+<span class="c1"># connector.class: 连接器的启动类，debezium的原生参数，无默认值，示例中的值为mysql sink connector对应的类名，不可修改</span>
+connector.class<span class="o">=</span>io.debezium.connector.mysql.sink.MysqlSinkConnector
+<span class="c1"># tasks.max: 连接器创建的最大任务数，debezium的原生参数，默认值为1，MySQL connector通常为单任务，不建议修改</span>
+tasks.max<span class="o">=</span><span class="m">1</span>
+<span class="c1"># topics: sink端从kafka抽取数据的topic，新增参数，String类型，无默认值</span>
+<span class="c1"># 与mysql-source.properties的配置项transforms.route.replacement相对应</span>
+<span class="nv">topics</span><span class="o">=</span>mysql_server_1_topic
+<span class="c1"># opengauss.driver: openGauss驱动名，新增参数，String类型，无默认值，与JDBC驱动相对应，不可修改</span>
+opengauss.driver<span class="o">=</span>org.opengauss.Driver
+<span class="c1"># opengauss.username: openGauss用户名，新增参数，String类型，无默认值，根据实际自定义修改</span>
+opengauss.username<span class="o">=</span>root
+<span class="c1"># opengauss.password: openGauss用户密码，新增参数，String类型，无默认值，根据实际自定义修改</span>
+opengauss.password<span class="o">=</span>&lt;PASSWORD&gt;
+<span class="c1"># opengauss.url: openGauss连接url，新增参数，String类型，无默认值，根据实际自定义修改，包括数据库ip，端口号，连接的数据库</span>
+opengauss.url<span class="o">=</span>jdbc:opengauss://&lt;HOST_IP&gt;:15400/mysqlmode_db?loggerLevel<span class="o">=</span>OFF
+<span class="c1"># parallel.replay.thread.num: 并行回放默认线程数量，新增参数，int类型，默认为30，可自定义修改，取值需大于0</span>
+parallel.replay.thread.num<span class="o">=</span><span class="m">30</span>
+<span class="c1"># xlog.location: 增量迁移停止时openGauss端lsn的存储文件路径，新增参数，String类型，无默认值，根据实际自定义修改，需保证文件有读写权限</span>
+xlog.location<span class="o">=</span>/home/omm/portal/workspace/1/status/xlog.txt
+<span class="c1"># schema.mappings: mysql和openGauss的schema映射关系，与全量迁移chameleon配置相对应，新增参数，String类型，无默认值</span>
+<span class="c1"># 用；区分不同的映射关系，用：区分mysql的database和openGauss的schema</span>
+<span class="c1"># 例如chameleon的配置</span>
+<span class="c1"># schema_mappings:</span>
+<span class="c1">#   mysql_database1: opengauss_schema1</span>
+<span class="c1">#   mysql_database2: opengauss_schema2</span>
+<span class="c1"># 则sink端的schema.mappings参数需配置为</span>
+<span class="c1"># schema.mappings=mysql_database1:opengauss_schema1;mysql_database2:opengauss_schema2</span>
+schema.mappings<span class="o">=</span>test:test
+<span class="c1"># commit.process.while.running：布尔值，默认为false，通过该配置项选择是否上报迁移进度</span>
+commit.process.while.running<span class="o">=</span><span class="nb">true</span>
+<span class="c1"># sink.process.file.path：迁移进度文件的输出路径，只有commit.process.while.running=true时才起作用，默认在迁移插件同一目录下</span>
+sink.process.file.path<span class="o">=</span>/home/omm/portal/workspace/1/status/incremental/
+<span class="c1"># commit.time.interval：迁移进度上报的时间间隔，取int型整数，默认为1，单位：s</span>
+commit.time.interval<span class="o">=</span><span class="m">1</span>
+<span class="c1"># fail.sql.path：回放失败的sql语句输出路径，默认在迁移插件同一目录下</span>
+fail.sql.path<span class="o">=</span>/home/omm/portal/workspace/1/status/incremental/
+<span class="c1"># create.count.info.path：记录源端日志生产起始点的文件读取路径，需与source端的此配置项相同，默认与迁移插件在同一目录下</span>
+create.count.info.path<span class="o">=</span>/home/omm/portal/workspace/1/status/incremental/
+<span class="c1"># process.file.count.limit：进度目录下文件数目限制值，如果进度目录下的文件数目超过该值，工具启动时会按时间从早到晚删除多余的文件，默认值为10</span>
+process.file.count.limit<span class="o">=</span><span class="m">10</span>
+<span class="c1"># process.file.time.limit：进度文件保存时长，超过该时长的文件会在工具下次启动时删除，默认值为168，单位：小时</span>
+process.file.time.limit<span class="o">=</span><span class="m">168</span>
+<span class="c1"># append.write：进度文件写入方式，true表示追加写入，false表示覆盖写入，默认值为false</span>
+append.write<span class="o">=</span><span class="nb">false</span>
+<span class="c1"># file.size.limit：文件大小限制，超过该限制值工具会另启新文件写入，默认为10，单位：兆</span>
+file.size.limit<span class="o">=</span><span class="m">10</span>
+<span class="c1"># queue.size.limit: 存储kafka记录的队列的最大长度，新增参数，int类型，默认值为1000000，可自定义</span>
+queue.size.limit<span class="o">=</span><span class="m">1000000</span>
+<span class="c1"># open.flow.control.threshold: 用于流量控制，新增参数，double类型，默认值为0.8，可自定义</span>
+<span class="c1"># 当存储kafka记录的队列长度&gt;最大长度queue.size.limit*该门限值时，将启用流量控制，暂停从kafka抽取数据</span>
+open.flow.control.threshold<span class="o">=</span><span class="m">0</span>.8
+<span class="c1"># close.flow.control.threshold: 用于流量控制，新增参数，double类型，默认值为0.7，可自定义</span>
+<span class="c1"># 当存储kafka记录的队列长度&lt;最大长度queue.size.limit*该门限值时，将关闭流量控制，继续从kafka抽取数据</span>
+close.flow.control.threshold<span class="o">=</span><span class="m">0</span>.7
+<span class="c1">#record.breakpoint.kafka.topic:断点记录kafka消息topic,可根据实际情况修改，默认值为bp_topic</span>
+record.breakpoint.kafka.topic<span class="o">=</span>mysql_bp_1_topic
+<span class="c1">#record.breakpoint.kafka.attempts:从kafka读取断点topic的最大重试次数</span>
+record.breakpoint.kafka.attempts<span class="o">=</span><span class="m">3</span>
+<span class="c1">#record.breakpoint.kafka.bootstrap.servers:kafka服务器地址，可根据实际情况修改，默认值为localhost:9092</span>
+record.breakpoint.kafka.bootstrap.servers<span class="o">=</span><span class="m">127</span>.0.0.1:9092
+<span class="c1">#record.breakpoint.kafka.size.limit：断点记录Kafka的条数限制，超过该限制会触发删除Kafka的断点清除策略，删除无用的断点记录数据，单位：事务万条数</span>
+record.breakpoint.kafka.size.limit<span class="o">=</span><span class="m">3000</span>
+<span class="c1">#record.breakpoint.kafka.clear.interval：断点记录Kafka的时间限制，超过该限制会触发删除Kafka的断点清除策略，删除无用的断点记录数据，单位：小时</span>
+record.breakpoint.kafka.clear.interval<span class="o">=</span><span class="m">1</span>
+<span class="c1"># record.breakpoint.repeat.count.limit：断点续传时，查询待回放数据是否已在断点之前备回放的数据条数，默认值：50000</span>
+record.breakpoint.repeat.count.limit<span class="o">=</span><span class="m">50000</span>
+<span class="c1"># wait.timeout.second：sink端数据库停止服务后迁移工具等待数据库恢复服务的最大时长，默认值：28800，单位：秒</span>
+wait.timeout.second<span class="o">=</span><span class="m">28800</span>
+<span class="c1"># database.standby.hostnames：sink端数据库是主备部署时的备机ip列表，用逗号隔开，需与port列表一一对应，此配置项只对sink端是openGauss时起作用，默认值：""，不配置此项时sink端只连接主节点</span>
+database.standby.hostnames<span class="o">=</span><span class="s2">""</span>
+<span class="c1"># database.standby.ports：sink端数据库是主备部署时的备机port列表，用逗号隔开，需与ip列表一一对应，此配置项只对sink端是openGauss时起作用，默认值：""，不配置此项时sink端只连接主节点</span>
+database.standby.ports<span class="o">=</span><span class="s2">""</span>
+</code></pre></div>
+
+<p>启动sink端</p>
+<div class="highlight"><pre><span></span><code>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/connect-standalone<span class="w"> </span>/home/omm/portal/workspace/1/config/debezium/connect-avro-standalone-sink.properties<span class="w">  </span>/home/omm/portal/workspace/1/config/debezium/mysql-sink.properties<span class="w"> </span>&gt;<span class="w"> </span>sink.log<span class="w"> </span><span class="p">&amp;</span>
+</code></pre></div>
+
+<p><strong>增量推送数据查看</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1">#查看创建的topic</span>
+sh<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/kafka-topics<span class="w"> </span>--list<span class="w"> </span>--bootstrap-server<span class="w"> </span><span class="m">127</span>.0.0.1:9092
+<span class="c1">#删除创建的topic</span>
+sh<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/kafka-topics<span class="w"> </span>--delete<span class="w"> </span>--bootstrap-server<span class="w"> </span><span class="m">127</span>.0.0.1:9092<span class="w"> </span>--topic<span class="w"> </span>topic_name
+<span class="c1">#查看推送的数据</span>
+sh<span class="w"> </span>/home/omm/portal/tools/debezium/confluent-5.5.1/bin/kafka-console-consumer<span class="w"> </span>--bootstrap-server<span class="w"> </span><span class="m">127</span>.0.0.1:9092<span class="w">  </span>--topic<span class="w"> </span>mysql_server_1_topic<span class="w"> </span>--from-beginning<span class="w"> </span>--max-messages<span class="w"> </span><span class="m">10</span>
+</code></pre></div>
+
+<h3 id="gs_rep_portal">集成工具gs_rep_portal迁移<a class="headerlink" href="#gs_rep_portal" title="本节链接">#</a></h3>
+<p>修改任务（1）配置的数据库连接信息  <br />
+vi /home/omm/portal/workspace/1/config/migrationConfig.properties  </p>
+<div class="highlight"><pre><span></span><code><span class="na">mysql.user.name</span><span class="o">=</span><span class="s">root</span>
+<span class="na">mysql.user.password</span><span class="o">=</span><span class="s">***</span>
+<span class="na">mysql.database.host</span><span class="o">=</span><span class="s">127.0.0.1</span>
+<span class="na">mysql.database.port</span><span class="o">=</span><span class="s">3306</span>
+<span class="na">mysql.database.name</span><span class="o">=</span><span class="s">test123</span>
+<span class="c1">#mysql.database.table=</span>
+
+<span class="na">opengauss.user.name</span><span class="o">=</span><span class="s">test</span>
+<span class="na">opengauss.user.password</span><span class="o">=</span><span class="s">***</span>
+<span class="na">opengauss.database.host</span><span class="o">=</span><span class="s">127.0.0.1</span>
+<span class="na">opengauss.database.port</span><span class="o">=</span><span class="s">5432</span>
+<span class="na">opengauss.database.name</span><span class="o">=</span><span class="s">test1234</span>
+<span class="na">opengauss.database.schema</span><span class="o">=</span><span class="s">test123</span>
+<span class="c1"># opengauss数据库是否为集群，可选择true/false，选择true时，需配置opengauss.database.standby.hostnames和opengauss.database.standby.ports</span>
+<span class="na">opengauss.database.iscluster</span><span class="o">=</span><span class="s">false</span>
+<span class="c1"># opengauss数据库备机ip1,ip2,...，多个备机ip间用英文逗号隔开</span>
+<span class="c1"># opengauss.database.standby.hostnames=127.0.0.2,127.0.0.3</span>
+<span class="c1"># opengauss数据库备机端口port1,port2,...，多个备机port间用英文逗号隔开，注意需要与备机ip1,ip2,...保持对应</span>
+<span class="c1"># opengauss.database.standby.ports=5432,5432</span>
+</code></pre></div>
+
+<p>启动kafka</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm/portal
+sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_kafka<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<p>执行迁移任务</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/omm/portal
+<span class="c1">#全量迁移</span>
+sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_mysql_full_migration<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+<span class="c1">#全量校验</span>
+sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_mysql_full_migration_datacheck<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+<span class="c1">#增量迁移</span>
+sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_mysql_incremental_migration<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+<span class="c1">#增量校验</span>
+sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_mysql_incremental_migration_datacheck<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+</code></pre></div>
+
+<p>迁移状态信息查看</p>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>/home/omm/portal/workspace/2/status/full_migration.txt
+</code></pre></div>
+
+<h3 id="-gs_mysync">全量迁移-gs_mysync<a class="headerlink" href="#-gs_mysync" title="本节链接">#</a></h3>
+<ul>
+<li>
+<p>实现原理：
+  使用只读模式，对所有 MySQL 表创建一个完整的快照，将数据一次性复制到 opengauss</p>
+</li>
+<li>
+<p>迁移日志目录 <br />
+  /home/omm/portal/workspace/2/logs/full_migration.log <br />
+前提：启动kafka</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_kafka
+</code></pre></div>
+
+<p>创建迁移任务</p>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>gs_mysync.sh<span class="w"> </span>install<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<p>执行迁移任务</p>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>gs_mysync.sh<span class="w"> </span>start<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<h3 id="-gs_replicate">增量迁移-gs_replicate<a class="headerlink" href="#-gs_replicate" title="本节链接">#</a></h3>
+<ul>
+<li>
+<p>实现原理：
+  debezium mysql connector   <br />
+  source端：监控mysql数据库的binlog日志，并将数据（DDL和DML操作）以AVRO格式写入到kafka<br />
+  sink端：从kafka读取AVRO格式数据（DDL和DML操作），并组装为事务，在openGauss端按照事务粒度并行回放</p>
+</li>
+<li>
+<p>迁移日志目录  <br />
+  /home/omm/portal/workspace/2/logs/debezium/connect_source.log
+前提：启动kafka</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>gs_rep_portal.sh<span class="w"> </span>start_kafka<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<p>创建迁移任务</p>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>gs_replicate.sh<span class="w"> </span>install<span class="w"> </span>mysql-opengauss<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<p>执行迁移任务</p>
+<div class="highlight"><pre><span></span><code>sh<span class="w"> </span>gs_replicate.sh<span class="w"> </span>start<span class="w"> </span>mysql-opengauss<span class="w"> </span><span class="m">1</span><span class="w"> </span>
+</code></pre></div>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/opengauss/%E8%BF%81%E7%A7%BB%E8%BD%AC%E6%8D%A2/mysql%E8%87%B3opengauss.md">Miss001/data-engineering-notes · database/domestic/opengauss/迁移转换/mysql至opengauss.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/postgresql-bu-shu-single-deploy/"><small>上一篇</small>PostgreSQL 部署：单节点部署</a><a class="glass next" href="/posts/opengauss-qian-yi-zhuan-huan-oracle-zhi-opengauss/"><small>下一篇</small>openGauss 迁移转换：oracle至opengauss</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">语法转换差异</a></li><li><a href="#_2">迁移工具</a><ul><li><a href="#-chameleon">全量迁移-chameleon（基础工具）</a></li><li><a href="#-confluent">增量迁移-confluent（基础工具）</a></li><li><a href="#gs_rep_portal">集成工具gs_rep_portal迁移</a></li><li><a href="#-gs_mysync">全量迁移-gs_mysync</a></li><li><a href="#-gs_replicate">增量迁移-gs_replicate</a></li></ul></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>

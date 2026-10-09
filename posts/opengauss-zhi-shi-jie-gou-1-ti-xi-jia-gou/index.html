@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openGauss 知识结构：体系架构 · Miss001</title>
+<meta name="description" content="要点：基本架构、逻辑架构、物理架构、存储结构、行存储、列存储等。">
+<meta name="author" content="宇宙超级无敌美少女">
+<meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="openGauss 知识结构：体系架构 · Miss001">
+<meta property="og:description" content="要点：基本架构、逻辑架构、物理架构、存储结构、行存储、列存储等。">
+<meta property="og:url" content="https://miss001.github.io/posts/opengauss-zhi-shi-jie-gou-1-ti-xi-jia-gou/">
+<meta property="og:image" content="https://miss001.github.io/assets/avatar-512.png">
+<link rel="canonical" href="https://miss001.github.io/posts/opengauss-zhi-shi-jie-gou-1-ti-xi-jia-gou/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="alternate" type="application/atom+xml" title="宇宙超级无敌美少女的技术博客" href="/feed.xml">
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
+<link rel="stylesheet" href="/assets/style.css?v=202610091648">
+<link rel="stylesheet" href="/assets/highlight.css?v=202610091648">
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<nav class="nav glass" aria-label="主导航">
+  <a class="me" href="/"><img src="/assets/avatar.svg" alt="" width="32" height="32"><span>Miss001</span></a>
+  <a class="l" href="/">首页</a><a class="l" href="/categories/">分类</a><a class="l" href="/archive/">归档</a><a class="l" href="/tags/">标签</a><a class="l" href="/about/">关于</a>
+  <span class="sep"></span>
+  <button class="ib" id="search-btn" aria-label="搜索" title="搜索 (Ctrl+K 或 /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <button class="ib" id="theme-btn" aria-label="切换深色模式" title="切换深色/浅色"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</nav>
+<main class="wrap main">
+<div class="post-layout">
+<article class="post">
+  <header class="glass post-header c-sage">
+    <div class="pr-meta"><a class="cat-pill c-sage" href="/categories/data/">数据工程</a><span>2026 年 6 月 1 日</span><span>·</span><span>6 分钟阅读</span></div>
+    <h1>openGauss 知识结构：体系架构</h1>
+    <p class="post-summary">要点：基本架构、逻辑架构、物理架构、存储结构、行存储、列存储等。</p>
+    <div class="post-author"><img src="/assets/avatar.svg" alt="" width="28" height="28"><span>宇宙超级无敌美少女</span><span class="tags"><a href="/tags/database/">数据库</a><a href="/tags/domestic-db/">国产数据库</a><a href="/tags/opengauss/">openGauss</a></span></div>
+  </header>
+  <div class="glass prose">
+<h2 id="_1">基本架构<a class="headerlink" href="#_1" title="本节链接">#</a></h2>
+<ul>
+<li>多线程架构</li>
+<li>支持行存储和列存储的混合模式</li>
+<li>内核为PostgreSQL 9.2.4</li>
+<li>运行流程<br />
+  客户端建立和数据库之间的连接---&gt;  GaussMaster线程衍生出一个子线程(gaussdb) --&gt; SQL请求 --&gt; 检查shared buffer(行存引擎默认使用的缓冲区)/cstore buffers (列存引擎默认使用的缓冲区)/MOT(内存引擎默认使用的缓冲区) --&gt;<br />
+  找到数据--&gt; 软解析<br />
+  没有找到数据--&gt;协同后台线程从数据文件获取--&gt;加载到缓存区中--&gt;服务器线程将结果从缓存区中返回给客户端--&gt;硬解析  </li>
+</ul>
+<h2 id="_2">逻辑架构<a class="headerlink" href="#_2" title="本节链接">#</a></h2>
+<ul>
+<li>一个openGauss服务运行在一个主机(host)上并且管理着一个database cluster。</li>
+<li>一个DataBase Cluster可以包括：多个Database、多个User、多个UserGroup、以及Database中的所有对象。</li>
+<li>一个Database 可以有多个Schema（数据库中的命名空间），在数据库中创建的所有对象都是在Schema中创建，一个用户可以从同一个客户端连接中访问不同的Schema。不同的Schema中可以有多个同名的表、视图、索引等对象。当创建一个数据库时，会为其创建一个名为public的默认Schema。</li>
+<li>每个User和UserGroup在openGauss范围内是共享的。</li>
+<li>每个Database是相互独立的，彼此之间无法直接进行跨库关联查询，需要借助dblink访问。</li>
+<li>每个Database都有自己独立的表和索引文件，表和索引文件的大小限制为1 GB。</li>
+<li>每个表都有两个关联文件、后缀分别为 _fsm 和 _vm。它们称为可用空间映射和可见性映射。用于存储有关可用空间容量的信息、并可查看表文件中的每个页面</li>
+<li>索引只具有单个可用空间映射、而不具有可见性映射。</li>
+<li>所有数据库对象都由各自的OID在内部管理，其OID存储在pg_database中。</li>
+<li>表和索引也由各个OID管理，其OID存储在pg_class中。  </li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 数据库对应的oid</span>
+<span class="k">select</span><span class="w"> </span><span class="n">oid</span><span class="p">,</span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pg_database</span><span class="w"> </span><span class="p">;</span>
+<span class="c1">-- 表/索引等对应的oid</span>
+<span class="k">select</span><span class="w"> </span><span class="n">oid</span><span class="p">,</span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span>
+</code></pre></div>
+
+<h2 id="_3">物理架构<a class="headerlink" href="#_3" title="本节链接">#</a></h2>
+<ul>
+<li>一个database cluster的基础目录(base directory)为：dbnode_path</li>
+<li>初始化完成后，会有两个默认的表空间<br />
+  一个是pg_default：如果用户建表时没有指定表空间，所有新建的表都会放在pg_default中,对应目录是 $dbnode_path/base<br />
+  一个是pg_global：存放的是整个实例数据库所共享的系统表。对应目录是 $dbnode_path/global</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>文件名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>base</td>
+<td>表和索引文件存放目录</td>
+</tr>
+<tr>
+<td>global</td>
+<td>全局的系统表存放目录</td>
+</tr>
+<tr>
+<td>pg_clog</td>
+<td>存储事务提交状态信息，帮助数据库管理器跟踪事务的提交或回滚状态。它记录了每个事务的提交日志</td>
+</tr>
+<tr>
+<td>pg_csnlog</td>
+<td>用于存储CSN（Commit Sequence Number）的日志，支持MVCC（多版本并发控制）机制，帮助数据库系统在读写并发时保持一致性</td>
+</tr>
+<tr>
+<td>pg_errorinfo</td>
+<td>存储数据库系统错误的相关信息，主要用于系统错误报告和分析</td>
+</tr>
+<tr>
+<td>pg_llog</td>
+<td>维护逻辑复制日志，支持增量数据的传输和数据一致性保障</td>
+</tr>
+<tr>
+<td>pg_location</td>
+<td>管理数据库系统的位置信息，通常用于存储和访问有关数据库对象的地理信息或物理位置的元数据</td>
+</tr>
+<tr>
+<td>pg_logical</td>
+<td>用于逻辑复制的元数据和日志存储，支持数据库实例之间的数据同步和复制</td>
+</tr>
+<tr>
+<td>pg_multixact</td>
+<td>处理多事务（Multixact）的信息，主要用于支持多用户同时访问同一行数据时的锁定操作</td>
+</tr>
+<tr>
+<td>pg_notify</td>
+<td>存储数据库系统中的通知事件数据，用于发布/订阅机制（LISTEN/NOTIFY）实现进程间的通信</td>
+</tr>
+<tr>
+<td>pg_replslot</td>
+<td>用于物理或逻辑复制插槽的持久化存储，确保复制不会丢失数据，并管理数据同步的状态</td>
+</tr>
+<tr>
+<td>pg_serial</td>
+<td>用于存储序已提交的列化事务的相关数据</td>
+</tr>
+<tr>
+<td>pg_snapshots</td>
+<td>存储事务快照数据，用于MVCC机制中追踪事务的可见性，帮助管理读操作的一致性</td>
+</tr>
+<tr>
+<td>pg_stat_tmp</td>
+<td>用于存储数据库运行时的临时统计信息，避免在每次查询时都访问磁盘上的统计数据文件</td>
+</tr>
+<tr>
+<td>pg_subtrans</td>
+<td>记录子事务的信息，支持嵌套事务功能，用于管理复杂事务的提交或回滚操作</td>
+</tr>
+<tr>
+<td>pg_tblspc</td>
+<td>管理自定义表空间文件信息</td>
+</tr>
+<tr>
+<td>pg_twophase</td>
+<td>存储两阶段提交事务的状态信息，支持分布式事务的管理和提交</td>
+</tr>
+<tr>
+<td>pg_xlog</td>
+<td>存储WAL（Write-Ahead Logging）日志，用于数据库的事务日志记录，确保数据在崩溃后的恢复</td>
+</tr>
+<tr>
+<td>pg_undo</td>
+<td>管理事务的撤销日志信息，用于实现数据库的回滚操作</td>
+</tr>
+<tr>
+<td>pg_hba.conf</td>
+<td>数据库访问控制配置文件</td>
+</tr>
+<tr>
+<td>postgresql.conf</td>
+<td>数据库系统的主配置文件</td>
+</tr>
+<tr>
+<td>pg_ident.conf</td>
+<td>配置身份映射文件，允许将操作系统用户映射为数据库用户</td>
+</tr>
+<tr>
+<td>gaussdb.state</td>
+<td>存储数据库的当前状态信息，用于监控和记录数据库的运行状态（例如启动或关闭等操作）</td>
+</tr>
+<tr>
+<td>mot.conf</td>
+<td>内存表优化器 (Memory Optimized Table, MOT) 的配置文件</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">存储结构<a class="headerlink" href="#_4" title="本节链接">#</a></h2>
+<h3 id="_5">行存储<a class="headerlink" href="#_5" title="本节链接">#</a></h3>
+<p><strong>btree索引结构</strong></p>
+<ul>
+<li>元数据：存储B-tree索引的元数据信息</li>
+<li>根节点：树的顶层，包含指向子节点的指针和键值</li>
+<li>子节点：中间层节点，用于导航，存储指向其子节点的指针和对应的键值</li>
+<li>叶子节点：树的最底层节点，存储实际的键值及其对应的数据 CTID（block number，offset）即Tuple ID，可以用于直接访问 Heap Page中的实际数据    </li>
+</ul>
+<p><strong>数据页结构（8kb）</strong></p>
+<ul>
+<li>header：存储LSN号、校验位等元数据信息，占用24Bytes</li>
+<li>pd_linp：存储指向实际数据的指针,从前往后写</li>
+<li>free space：空闲空间（可分配空间）,当lower和upper相遇表示这个页就已写完</li>
+<li>tuple：存储实际数据行,从后往前写</li>
+<li>special space：页预留的位置</li>
+</ul>
+<h3 id="_6">列存储<a class="headerlink" href="#_6" title="本节链接">#</a></h3>
+<p>列存的B-tree索引整体结构上与行存相同<br />
+列存的ctid中记录的是（cu_id, offset），还需要再对应的CUDesc表中根据cu_id列的索引找到对应的CUDesc（CUDesc 是描述 CU 结构的元数据）记录，打开对应的CU文件，根据offset找到数据。  </p>
+<h2 id="_7">存储引擎<a class="headerlink" href="#_7" title="本节链接">#</a></h2>
+<h3 id="astoreappend-update">astore（Append Update）<a class="headerlink" href="#astoreappend-update" title="本节链接">#</a></h3>
+<p>默认存储引擎
+astore存储引擎没有将历史版本数据统一存放，而是和当前元组的版本放在了一起</p>
+<h3 id="ustorein-place-update">ustore（In-place Update）<a class="headerlink" href="#ustorein-place-update" title="本节链接">#</a></h3>
+<p>将最新版本数据和历史版本的数据分离存储  <br />
+将最新版本数据存储在数据页面上，将历史版本数据统一存放到undo回滚段里，由undo回收线程统一清理</p>
+<h3 id="cstore">cstore<a class="headerlink" href="#cstore" title="本节链接">#</a></h3>
+<p>列存储引擎</p>
+<h2 id="_8">事务<a class="headerlink" href="#_8" title="本节链接">#</a></h2>
+<p>特性：ACID（原子性/一致性/隔离性/持久性）<br />
+隔离级别：默认Read Committed,支持：READ COMMITTED、REPEATABLE READ<br />
+使用MVCC保证事务的一致性和隔离性  </p>
+<ul>
+<li>开启事务</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="k">BEGIN</span><span class="w"> </span><span class="k">WORK</span><span class="p">;</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>提交事务</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">COMMIT</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="w"> </span><span class="k">WORK</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+
+<ul>
+<li>回滚事务</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">ROLLBACK</span><span class="w"> </span><span class="k">TRANSACTION</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="w"> </span><span class="k">WORK</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+
+<h3 id="_9">子事务（保存点）<a class="headerlink" href="#_9" title="本节链接">#</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="w"> </span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="nb">varchar</span><span class="p">);</span>
+<span class="k">begin</span><span class="p">;</span>
+<span class="k">insert</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="k">values</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s1">'11'</span><span class="p">);</span>
+<span class="n">savepoint</span><span class="w"> </span><span class="n">sp1</span><span class="p">;</span>
+<span class="k">insert</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="k">values</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="s1">'12'</span><span class="p">);</span>
+<span class="n">savepoint</span><span class="w"> </span><span class="n">sp2</span><span class="p">;</span>
+<span class="k">insert</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="k">values</span><span class="w"> </span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="s1">'13'</span><span class="p">);</span>
+<span class="n">savepoint</span><span class="w"> </span><span class="n">sp3</span><span class="p">;</span>
+<span class="k">rollback</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">sp2</span><span class="p">;</span>
+
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">t1</span><span class="p">;</span>
+</code></pre></div>
+
+<h3 id="_10">自治事务<a class="headerlink" href="#_10" title="本节链接">#</a></h3>
+<p>在主事务执行过程中新中启动另一个独立的事务，这个独立事务可以在主事务提交或回滚之前进行提交或回滚。其提交和回滚不会影响主事务已提交的数据，同时自治事务也不受主事务影响。<br />
+在存储过程、函数和匿名块中定义，在DECLARE中用PRAGMA AUTONOMOUS_TRANSACTION关键字来声明。</p>
+<div class="highlight"><pre><span></span><code><span class="c1">--创建包含自治事务的存储过程</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">REPLACE</span><span class="w"> </span><span class="k">PROCEDURE</span><span class="w"> </span><span class="n">p_autonomous</span><span class="p">(</span><span class="n">v_i</span><span class="w"> </span><span class="nb">int</span><span class="p">,</span><span class="n">v_j</span><span class="w"> </span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">DECLARE</span>
+<span class="w">  </span><span class="n">PRAGMA</span><span class="w"> </span><span class="n">AUTONOMOUS_TRANSACTION</span><span class="p">;</span>
+<span class="w">  </span><span class="n">i</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="p">:</span><span class="o">=</span><span class="w"> </span><span class="n">v_i</span><span class="p">;</span>
+<span class="w">  </span><span class="n">j</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="p">:</span><span class="o">=</span><span class="w"> </span><span class="n">v_j</span><span class="p">;</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="k">insert</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">values</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">);</span>
+<span class="k">END</span><span class="p">;</span>
+<span class="c1">--创建调用自治事务存储过程的普通存储过程</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">REPLACE</span><span class="w"> </span><span class="k">PROCEDURE</span><span class="w"> </span><span class="n">p_test0_insert</span><span class="p">(</span><span class="n">v_i</span><span class="w"> </span><span class="nb">int</span><span class="p">,</span><span class="n">v_j</span><span class="w"> </span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">DECLARE</span>
+<span class="k">BEGIN</span>
+<span class="w">  </span><span class="k">insert</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">test0</span><span class="w"> </span><span class="k">values</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">);</span>
+<span class="w">  </span><span class="n">p_autonomous</span><span class="p">(</span><span class="n">v_i</span><span class="p">,</span><span class="n">v_j</span><span class="p">);</span>
+<span class="w">  </span><span class="k">EXCEPTION</span>
+<span class="w">    </span><span class="k">WHEN</span><span class="w"> </span><span class="n">others</span><span class="w"> </span><span class="k">THEN</span>
+<span class="w">      </span><span class="n">RAISE</span><span class="w"> </span><span class="n">NOTICE</span><span class="w"> </span><span class="s1">'Error occurred: SQLSTATE: %, Message: %'</span><span class="p">,</span><span class="w"> </span><span class="k">SQLSTATE</span><span class="p">,</span><span class="w"> </span><span class="n">SQLERRM</span><span class="p">;</span>
+<span class="k">END</span><span class="p">;</span>
+<span class="k">call</span><span class="w"> </span><span class="n">p_test0_insert</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">)</span>
+</code></pre></div>
+
+<h2 id="_11">锁<a class="headerlink" href="#_11" title="本节链接">#</a></h2>
+<p>与postgresql一致</p>
+    <div class="source-note">本文整理自我的公开笔记仓库 <a href="https://github.com/Miss001/data-engineering-notes/blob/main/database/domestic/opengauss/%E7%9F%A5%E8%AF%86%E7%BB%93%E6%9E%84/1.%E4%BD%93%E7%B3%BB%E6%9E%B6%E6%9E%84.md">Miss001/data-engineering-notes · database/domestic/opengauss/知识结构/1.体系架构.md</a>，排版有调整，技术内容保持原样。</div>
+  </div>
+  <nav class="post-nav"><a class="glass prev" href="/posts/opengauss-qian-yi-zhuan-huan-oracle-qian-yi-wen-ti-ji-lu/"><small>上一篇</small>openGauss 迁移转换：oracle迁移问题记录</a><a class="glass next" href="/posts/mysql-fu-zhi-zhu-cong-qie-huan/"><small>下一篇</small>MySQL 复制：主从切换</a></nav>
+</article>
+<aside class="toc"><div class="toc-inner glass"><h3>目录</h3><ul><li><a href="#_1">基本架构</a></li><li><a href="#_2">逻辑架构</a></li><li><a href="#_3">物理架构</a></li><li><a href="#_4">存储结构</a><ul><li><a href="#_5">行存储</a></li><li><a href="#_6">列存储</a></li></ul></li><li><a href="#_7">存储引擎</a><ul><li><a href="#astoreappend-update">astore（Append Update）</a></li><li><a href="#ustorein-place-update">ustore（In-place Update）</a></li><li><a href="#cstore">cstore</a></li></ul></li><li><a href="#_8">事务</a><ul><li><a href="#_9">子事务（保存点）</a></li><li><a href="#_10">自治事务</a></li></ul></li><li><a href="#_11">锁</a></li></ul></div></aside>
+</div>
+</main>
+<footer class="wrap foot">
+  <div class="glass">
+    <span>© 2026 宇宙超级无敌美少女</span>
+    <span class="foot-links"><a href="https://github.com/Miss001">GitHub</a><a href="mailto:522160919@qq.com">522160919@qq.com</a><a href="/feed.xml">RSS</a></span>
+  </div>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-backdrop" data-close></div>
+  <div class="search-panel glass" role="dialog" aria-label="搜索文章">
+    <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="搜索文章标题、标签、正文…" autocomplete="off"><kbd data-close>Esc</kbd></div>
+    <ul class="search-results" id="search-results"></ul>
+  </div>
+</div>
+<script src="/assets/main.js?v=202610091648"></script>
+</body>
+</html>
