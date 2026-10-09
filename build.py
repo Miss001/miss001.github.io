@@ -6,6 +6,7 @@
     python3 build.py
 """
 import html, json, re, shutil, datetime
+ASSET_V = datetime.datetime.now().strftime("%Y%m%d%H%M")
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
@@ -133,8 +134,8 @@ def layout(title, body, active="", desc=None, path="/"):
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="alternate" type="application/atom+xml" title="{SITE['title']}" href="/feed.xml">
 <script>(function(){{try{{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}}catch(e){{}}}})();</script>
-<link rel="stylesheet" href="/assets/style.css">
-<link rel="stylesheet" href="/assets/highlight.css">
+<link rel="stylesheet" href="/assets/style.css?v={ASSET_V}">
+<link rel="stylesheet" href="/assets/highlight.css?v={ASSET_V}">
 </head>
 <body>
 <div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -161,7 +162,7 @@ def layout(title, body, active="", desc=None, path="/"):
     <ul class="search-results" id="search-results"></ul>
   </div>
 </div>
-<script src="/assets/main.js"></script>
+<script src="/assets/main.js?v={ASSET_V}"></script>
 </body>
 </html>
 """
