@@ -1,6 +1,7 @@
 ---
 title: Ollama 导入本地 GGUF 模型：以 Qwen2.5-3B 为例
 date: 2026-10-07
+category: agent
 tags: [Ollama, 大模型, 离线部署]
 summary: 离线环境无法 ollama pull，可以从 Hugging Face 下载 GGUF 文件，写一个 Modelfile（模型路径 + 对话模板 + 停止词），再用 ollama create 导入并通过 API 测试。
 source: https://github.com/Miss001/ai/blob/main/ollama/模型部署.md

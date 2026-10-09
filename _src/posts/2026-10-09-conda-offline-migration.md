@@ -1,6 +1,7 @@
 ---
 title: Conda 环境离线安装与迁移：conda-pack 打包到内网服务器
 date: 2026-10-09
+category: data
 tags: [Python, Conda, 离线部署]
 summary: 内网服务器装不了包？在有网的机器上建好 conda 环境，用 conda-pack 打成压缩包拷过去解压即用；也可以只下载离线包，用 --offline / --no-index 安装。
 source: https://github.com/Miss001/python

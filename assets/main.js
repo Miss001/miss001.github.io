@@ -85,7 +85,7 @@
     res.sort(function (a, b) { return b.score - a.score; });
     list.innerHTML = res.length ? res.map(function (r) {
       return '<li><a href="' + r.p.url + '"><div class="r-title">' + hl(r.p.title, terms) + '</div><div class="r-snippet">' + hl(r.snip, terms) + '</div></a></li>';
-    }).join('') : '<li class="empty">没有找到相关文章</li>';
+    }).join('') : '<li class="s-empty">没有找到相关文章</li>';
     sel = -1;
   }
   function open() {

@@ -1,6 +1,7 @@
 ---
 title: Ollama 离线安装：systemd 服务与 Docker 两种方式
 date: 2026-10-06
+category: agent
 tags: [Ollama, 大模型, 离线部署, Docker]
 summary: 在无法直连外网的 Linux 服务器上安装 Ollama：改写官方 install.sh 走本地安装包、配置 systemd 开机自启，或者直接用 Docker 一条命令跑起来。
 source: https://github.com/Miss001/ai/tree/main/ollama
