@@ -23,7 +23,7 @@ SITE = {
     "title": "宇宙超级无敌美少女的技术博客",
     "short": "Miss001",
     "author": "宇宙超级无敌美少女",
-    "roles": ["数据工程师", "Agent 开发", "UI 设计"],
+    "roles": ["数据工程", "AI 应用", "UI 设计"],
     "desc": "宇宙超级无敌美少女的技术博客：数据工程、AI 应用与 UI 设计笔记。",
     "url": "https://miss001.github.io",
     "github": "https://github.com/Miss001",
@@ -33,11 +33,11 @@ SITE = {
 # 三个分类（文章 front matter 里写 category: data / agent / design）
 CATEGORIES = [
     {"slug": "data", "name": "数据工程", "color": "sage",
-     "desc": "Spark / Hive / ES / Kylin 数据链路，MySQL、Oracle、TiDB 与国产数据库，环境与部署。"},
+     "desc": "Hive、Spark、Kylin、HDFS、Elasticsearch，MySQL、Oracle、PostgreSQL、TiDB 与国产数据库，ETL 与 Linux 运维。"},
     {"slug": "agent", "name": "AI 应用", "color": "sky",
-     "desc": "Ollama、Dify 本地大模型部署，RAG、NL2SQL 与 Agent 应用。"},
+     "desc": "Ollama、Dify 本地部署，NL2SQL 与大模型应用。"},
     {"slug": "design", "name": "UI 设计", "color": "peach",
-     "desc": "排版、配色与交互细节，把数据和 Agent 的能力做成清楚好用的界面。"},
+     "desc": "排版、配色、交互与设计系统。"},
 ]
 CAT = {c["slug"]: c for c in CATEGORIES}
 
