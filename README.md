@@ -1,14 +1,15 @@
 # Miss001.github.io
 
-宇宙超级无敌美少女的个人技术博客 —— 「从未抵达，一直在路上」
+宇宙超级无敌美少女的个人技术博客：数据工程师 / Agent 开发 / UI 设计
 
 线上地址：<https://miss001.github.io>
 
 ## 特性
 
-- 简体中文界面，简洁的技术博客风格，桌面 / 手机自适应
-- 首页文章列表、标签页、关于页、404 页
-- 站内搜索（右上角放大镜，或按 `Ctrl+K` / `/`），纯前端实现，不依赖第三方服务
+- 简体中文界面，柔和现代的 Bento 拼贴 + 毛玻璃风格，桌面 / 手机自适应
+- 三个分类：数据工程 / Agent 开发 / UI 设计（`/categories/`），空分类显示「即将更新」
+- 首页、文章页、分类页、标签页、关于页、404 页
+- 站内搜索（导航栏放大镜、首页「搜索文章」按钮，或按 `Ctrl+K` / `/`），纯前端实现，不依赖第三方服务
 - 深色 / 浅色模式切换（默认跟随系统，选择会被记住）
 - 代码高亮、一键复制代码、文章目录（桌面端）、RSS（`/feed.xml`）、`sitemap.xml`
 
@@ -17,9 +18,10 @@
 ```
 _src/posts/       文章源文件（Markdown），文件名格式：YYYY-MM-DD-英文短名.md
 _src/about.md     关于页的自我介绍
-assets/           样式、脚本、图标（手写，构建时只会重新生成 highlight.css）
+assets/           样式、脚本、头像与图标（avatar.svg / favicon.svg / favicon-32.png / apple-touch-icon.png）
+                  构建时只会重新生成 highlight.css
 build.py          生成器：把 Markdown 渲染成静态 HTML
-index.html、posts/、tags/、about/、search.json、feed.xml ……   ← 构建产物，需要一起提交
+index.html、posts/、categories/、tags/、about/、search.json、feed.xml ……   ← 构建产物，需要一起提交
 .nojekyll         告诉 GitHub Pages 不要再用 Jekyll 处理，直接按静态文件发布
 ```
 
@@ -48,6 +50,7 @@ index.html、posts/、tags/、about/、search.json、feed.xml ……   ← 构�
    ---
    title: 文章标题
    date: 2026-10-20
+   category: data          # data=数据工程 / agent=Agent 开发 / design=UI 设计
    tags: [Spark, 大数据]
    summary: 一两句话的摘要，会显示在首页和搜索结果里。
    source: https://github.com/Miss001/xxx      # 可选，整理自哪个笔记仓库
@@ -73,6 +76,7 @@ index.html、posts/、tags/、about/、search.json、feed.xml ……   ← 构�
    git push
    ```
 
+> 分类名称、简介和技术栈在 `build.py` 顶部的 `CATEGORIES`、`SKILLS` 里修改。
 > 中文标签会映射成英文网址，映射表在 `build.py` 的 `TAG_SLUGS` 里，新增中文标签时记得加一行。
 > 发布前请确认文章里没有密码、内网 IP、真实业务数据等敏感信息。
 

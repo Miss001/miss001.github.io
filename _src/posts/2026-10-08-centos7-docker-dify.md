@@ -1,6 +1,7 @@
 ---
 title: CentOS 7.9 安装 Docker 并用 Docker Compose 部署 Dify
 date: 2026-10-08
+category: agent
 tags: [Docker, Dify, CentOS, 大模型]
 summary: CentOS 7 停止维护后官方源不好用了：换成阿里云的 yum 源和 docker-ce 源，安装指定版本 Docker；再拉取 Dify 源码，一条 docker compose 命令启动 Dify。
 source: https://github.com/Miss001/docker/blob/main/部署/deploy-centos7.9.md
